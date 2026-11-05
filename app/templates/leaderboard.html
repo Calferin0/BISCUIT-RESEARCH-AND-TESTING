@@ -1,34 +1,45 @@
 {% extends "base.html" %}
 {% block title %}Awards night{% endblock %}
 
-{#- Blind rating: any biscuit the viewer hasn't rated yet is redacted (name, photo, score),
-    so a podium place or an award can't sway their own verdict. `rated` = ids they've rated. -#}
+{#- Blind rating, as relaxed by the case lifecycle (app/cases.py): every biscuit's NAME and PLACE
+    show to everyone, but its SCORE (and anything that leaks it: verdict stamp, award detail,
+    an agent's score for it) stays sealed until the viewer has filed, the case is a week old,
+    or it's closed. `scored` = ids whose scores this viewer may see. -#}
+{%- macro sealed() -%}<span class="sealed-chip" title="File your report (or wait for the case to go public) to see the score">🔒 sealed</span>{%- endmacro %}
+
 {%- macro award_cards(list, redact=false) -%}
 <ul class="awards-grid">
   {% for a in list %}
+  {% set hidden = redact and (a.winner_ids | reject("in", scored) | list) %}
   <li class="award-card tone-{{ loop.index0 % 6 }}" style="--i: {{ loop.index0 }}">
     <span class="award-icon" aria-hidden="true">{{ a.icon }}</span>
     <span class="award-goes">And the award goes to…</span>
     <h3 class="award-title">{{ a.title }}</h3>
-    <p class="award-winner">
-      {%- for w in a.winners -%}
-        {%- if not loop.first %} &amp; {% endif -%}
-        {%- if redact and a.winner_ids[loop.index0] not in rated -%}<span class="redacted" title="Rate this biscuit to reveal it">CLASSIFIED</span>
-        {%- else -%}{{ w }}{%- endif -%}
-      {%- endfor -%}
-      {% if a.winners | length > 1 %} <span class="tie">tie!</span>{% endif %}</p>
+    <p class="award-winner">{{ a.winners | join(" & ") }}{% if a.winners | length > 1 %} <span class="tie">tie!</span>{% endif %}</p>
     <p class="award-tag">“{{ a.tag }}”</p>
-    <p class="award-detail">{{ a.detail }}</p>
+    <p class="award-detail">{% if hidden %}🔒 score sealed until you file{% else %}{{ a.detail }}{% endif %}</p>
   </li>
   {% endfor %}
 </ul>
+{%- endmacro %}
+
+{%- macro biscuit_ref(items) -%}
+  {%- for bid, name in items -%}
+    {%- if not loop.first %} &amp; {% endif -%}<a href="{{ url_for('views.biscuit', biscuit_id=bid) }}">{{ name }}</a>
+  {%- endfor -%}
+{%- endmacro %}
+
+{%- macro agent_score(items, value) -%}
+  {%- if items | map(attribute=0) | reject("in", scored) | list -%}{{ sealed() }}
+  {%- else -%}<span class="muted mono small">{{ "%.1f" | format(value) }}</span>{%- endif -%}
 {%- endmacro %}
 
 {% block content %}
 <section class="hero awards-hero">
   <p class="eyebrow">Declassified · live from the biscuit tin</p>
   <h1>Awards Night</h1>
-  <p class="lede">Rankings and honours, recalculated every time someone files a report.</p>
+  <p class="lede">Rankings and honours, recalculated every time someone files a report.
+    Scores stay sealed until you've filed your own, or the case goes public a week after logging.</p>
   <nav class="jump" aria-label="Sections">
     <a href="#biscuits">🍪 Biscuit leaderboard</a>
     <a href="#agents">🕵️ Agent leaderboard</a>
@@ -40,25 +51,15 @@
 <div class="empty panel"><p class="lede">No field reports yet. The podium awaits.</p></div>
 {% else %}
 <ol class="podium">
-  {% for b in ranked[:3] %}
+  {% for b in ranked[:3] %}{% set show_results = b.id in scored %}
   <li class="podium-{{ loop.index }}">
-    {% if b.id in rated %}
     <a href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">
       <span class="medal" aria-hidden="true">{{ ['🥇', '🥈', '🥉'][loop.index0] }}</span>
       <div class="podium-photo">{% include "_photo.html" %}</div>
       <strong>{{ b.name }}</strong>
-      <span class="score-num">{{ "%.1f" | format(b.overall) }}</span>
+      {% if show_results %}<span class="score-num">{{ "%.1f" | format(b.overall) }}</span>{% else %}<span class="score-num">?.?</span>{{ sealed() }}{% endif %}
       <span class="muted small">{{ b.n }} report{{ 's' if b.n != 1 }}</span>
     </a>
-    {% else %}
-    <a href="{{ url_for('views.index') }}" title="Rate it to reveal it">
-      <span class="medal" aria-hidden="true">{{ ['🥇', '🥈', '🥉'][loop.index0] }}</span>
-      <div class="podium-photo"><span class="placeholder" aria-hidden="true">🔒</span></div>
-      <strong class="redacted">CLASSIFIED</strong>
-      <span class="score-num">?.?</span>
-      <span class="muted small">rate it to reveal</span>
-    </a>
-    {% endif %}
     <div class="plinth">{{ loop.index }}</div>
   </li>
   {% endfor %}
@@ -68,19 +69,15 @@
 <ol class="ranking panel" start="4">
   {% for b in ranked[3:] %}
   <li>
-    {% if b.id in rated %}
     <a href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">
       <span class="rank-name">{{ b.name }}</span>
+      {% if b.id in scored %}
       <span class="meter"><span style="--pct: {{ (b.overall / 5 * 100) | round(1) }}%"></span></span>
       <span class="score-num">{{ "%.1f" | format(b.overall) }}</span>
+      {% else %}
+      <span class="meter"></span>{{ sealed() }}
+      {% endif %}
     </a>
-    {% else %}
-    <a href="{{ url_for('views.index') }}" title="Rate it to reveal it">
-      <span class="rank-name redacted">CLASSIFIED</span>
-      <span class="meter"></span>
-      <span class="score-num">?.?</span>
-    </a>
-    {% endif %}
   </li>
   {% endfor %}
 </ol>
@@ -103,25 +100,16 @@
 <div class="empty panel"><p class="lede">Agents need a couple of reports each before the honours start rolling in.</p></div>
 {% endif %}
 
-{#- A biscuit name, or CLASSIFIED if the viewer hasn't rated it yet (blind rating, D10). -#}
-{%- macro biscuit_ref(items) -%}
-  {%- for bid, name in items -%}
-    {%- if not loop.first %} &amp; {% endif -%}
-    {%- if bid in rated -%}<a href="{{ url_for('views.biscuit', biscuit_id=bid) }}">{{ name }}</a>
-    {%- else -%}<span class="redacted" title="Rate this biscuit to reveal it">CLASSIFIED</span>{%- endif -%}
-  {%- endfor -%}
-{%- endmacro %}
-
 <h3 class="sub-title">Agent dossiers</h3>
 <ul class="dossiers">
   {% for a in agents %}{% set fav = awards.favourites.get(a.id) %}
   <li class="agent-card">
     <p class="agent-card-head"><span class="agent-card-avatar" aria-hidden="true">{{ a.avatar }}</span> <strong>{{ a.name }}</strong></p>
-    <p class="agent-card-stats mono">{{ a.n }} report{{ 's' if a.n != 1 }}{% if a.given is not none %} · avg {{ "%.1f" | format(a.given) }}{% endif %}{% if a.added %} · {{ a.added }} logged{% endif %}</p>
+    <p class="agent-card-stats mono">{{ a.n }} report{{ 's' if a.n != 1 }}{% if given.get(a.id) is not none %} · avg {{ "%.1f" | format(given[a.id]) }}{% endif %}{% if a.added %} · {{ a.added }} logged{% endif %}</p>
     {% if fav %}
-    <p class="love">💘 <span class="love-label">Soulmate</span> {{ biscuit_ref(fav.soulmate) }} <span class="muted mono small">{{ "%.1f" | format(fav.soulmate_score) }}</span></p>
+    <p class="love">💘 <span class="love-label">Soulmate</span> {{ biscuit_ref(fav.soulmate) }} {{ agent_score(fav.soulmate, fav.soulmate_score) }}</p>
     {% if fav.nemesis %}
-    <p class="hate">💔 <span class="love-label">Nemesis</span> {{ biscuit_ref(fav.nemesis) }} <span class="muted mono small">{{ "%.1f" | format(fav.nemesis_score) }}</span></p>
+    <p class="hate">💔 <span class="love-label">Nemesis</span> {{ biscuit_ref(fav.nemesis) }} {{ agent_score(fav.nemesis, fav.nemesis_score) }}</p>
     {% endif %}
     {% else %}
     <p class="muted small">No field reports yet. Heart still unclaimed.</p>

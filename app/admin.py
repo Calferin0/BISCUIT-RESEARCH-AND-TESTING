@@ -39,7 +39,26 @@ def index():
         live=current_app.extensions["brt_presence"].live(),
         new_suggestions=len(db.list_suggestions(None, ("new",))),
         drops=db.list_drops(include_hidden=True),
+        reopen=db.pending_reopen_requests(),
     )
+
+
+@bp.post("/biscuits/<int:biscuit_id>/case")
+def set_case(biscuit_id: int):
+    """Close a case (biscuit gone from shops: results go public, reports stop) or reopen it."""
+    b = db.get_biscuit(biscuit_id)
+    if b is None:
+        abort(404)
+    closing = request.form.get("action") == "close"
+    db.set_case_status(biscuit_id, closed=closing)
+    flash(f"Case {'closed' if closing else 'reopened'}: {b['name']}.", "info")
+    return redirect(url_for("admin.index") + "#biscuits")
+
+
+@bp.post("/reopen-requests/<int:request_id>/decline")
+def decline_reopen(request_id: int):
+    db.decline_reopen_request(request_id)
+    return redirect(url_for("admin.index") + "#reopen")
 
 
 @bp.post("/drops/<int:drop_id>/toggle")

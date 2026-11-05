@@ -31,23 +31,25 @@ def test_results_sealed_until_you_file(app, client, agent_token, biscuit_id, oth
     assert "SECRET-NOTE-123" in after and "Results stay sealed" not in after
 
 
-def test_leaderboard_redacts_unrated_biscuits(app, client, agent_token, biscuit_id, other_agent):
+def test_leaderboard_shows_name_but_seals_score(app, client, agent_token, biscuit_id, other_agent):
+    """Case lifecycle rule: names and places are public, scores sealed until you file."""
     other_agent.post(f"/b/{biscuit_id}/rate", data=scores(4))
     sealed = client.get("/leaderboard").data.decode()
-    assert "Hobnob" not in sealed and "CLASSIFIED" in sealed
+    assert "Hobnob" in sealed and "?.?" in sealed and "🔒 sealed" in sealed
+    assert "4.0" not in sealed
 
     open_view = other_agent.get("/leaderboard").data.decode()
-    assert "Hobnob" in open_view
+    assert "4.0" in open_view and "?.?" not in open_view
 
 
-def test_other_agents_soulmate_is_redacted_until_you_rate_it(app, client, agent_token, biscuit_id, other_agent):
+def test_other_agents_soulmate_score_sealed_until_you_rate_it(app, client, agent_token, biscuit_id, other_agent):
     other_agent.post(f"/b/{biscuit_id}/rate", data=scores(5))
     page = client.get("/leaderboard").data.decode()
-    assert "Soulmate" in page and "Hobnob" not in page
+    assert "Soulmate" in page and "Hobnob" in page and "5.0" not in page
 
     client.post(f"/b/{biscuit_id}/rate", data=scores(2))
     page = client.get("/leaderboard").data.decode()
-    assert "Hobnob" in page
+    assert "5.0" in page
 
 
 def test_presence_tracks_page_views_and_editing(app, client, agent_token, biscuit_id):

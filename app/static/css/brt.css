@@ -372,6 +372,16 @@ blockquote { margin: 10px 0 0; padding: 0 0 0 12px; border-left: 3px solid var(-
 }
 .award-card .redacted { font-size: .75em; }
 
+.sealed-chip { display: inline-block; padding: 2px 7px; border-radius: 99px; background: rgb(255 255 255 / .08); font: 700 .7rem/1.4 var(--mono); color: var(--muted); }
+.award-card .sealed-chip { background: rgb(0 0 0 / .15); color: inherit; }
+
+/* --- case lifecycle + field-note thumbs ------------------------------------------------ */
+.tag-closed { background: var(--line); color: var(--ink); }
+.status.closed { color: #6b5a3a; }
+.closed-case { border-style: dashed; }
+.report-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+
 /* --- admin: live presence ---------------------------------------------------------------- */
 .live-panel h2 { display: flex; align-items: center; gap: 8px; }
 .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgb(63 191 116 / .6); animation: pulse 2s infinite; }

@@ -74,6 +74,29 @@
   </ul>
 </section>
 
+{% if reopen %}
+<section class="panel" id="reopen">
+  <h2>🔓 Reopen requests <span class="muted">({{ reopen | length }})</span></h2>
+  <ul class="suggestion-list">
+    {% for q in reopen %}
+    <li class="suggestion">
+      <div class="suggestion-head"><strong>{{ q.biscuit }}</strong><span class="muted small">{{ q.avatar }} {{ q.member }} · {{ q.created_at[:10] }}</span></div>
+      {% if q.note %}<p class="suggestion-body">{{ q.note }}</p>{% endif %}
+      <div class="row-actions">
+        <form method="post" action="{{ url_for('admin.set_case', biscuit_id=q.biscuit_id) }}">
+          <input type="hidden" name="action" value="reopen">
+          <button class="btn btn-small" type="submit">Approve: reopen case</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.decline_reopen', request_id=q.id) }}">
+          <button class="btn btn-small btn-ghost" type="submit">Decline</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <section class="panel" id="drops">
   <h2>Biscuit drops <span class="muted">({{ drops | length }})</span></h2>
   {% if not drops %}<p class="muted">None yet. Agents log them from the Dashboard.</p>{% else %}
@@ -117,7 +140,12 @@
           <td class="muted">{{ b.brand }}</td>
           <td>{{ b.n }}</td>
           <td>{{ "%.1f" | format(b.overall) if b.n else "–" }}</td>
-          <td>
+          <td class="row-actions">
+            <form method="post" action="{{ url_for('admin.set_case', biscuit_id=b.id) }}"
+                  {% if b.case_status != 'closed' %}data-confirm="Close the case for {{ b.name }}? It stops taking reports and its results go public."{% endif %}>
+              <input type="hidden" name="action" value="{{ 'reopen' if b.case_status == 'closed' else 'close' }}">
+              <button class="btn btn-small btn-ghost" type="submit">{{ '🔓 Reopen' if b.case_status == 'closed' else '🗄️ Close case' }}</button>
+            </form>
             <form method="post" action="{{ url_for('admin.toggle_biscuit', biscuit_id=b.id) }}">
               <button class="btn btn-small btn-ghost" type="submit">{{ 'Hide' if b.active else 'Restore' }}</button>
             </form>

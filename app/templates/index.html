@@ -21,12 +21,12 @@
   {% for b in biscuits %}
   <li>
     <a class="card" href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">
-      {% set show_results = b.mine %}
+      {% set show_results = b.visible %}
       <div class="card-photo">{% include "_photo.html" %}</div>
       <div class="card-body">
         <h2>{{ b.name }}</h2>
         {% if b.brand %}<p class="card-brand">{{ b.brand }}</p>{% endif %}
-        {% if b.n and not b.mine %}
+        {% if b.n and not b.visible %}
         <p class="card-brand">🔒 {{ b.n }} report{{ 's' if b.n != 1 }} · sealed until you file</p>
         {% elif b.n %}
         <div class="score">
@@ -37,7 +37,11 @@
         {% else %}
         <p class="card-brand">No reports yet</p>
         {% endif %}
+        {% if b.closed %}
+        <p class="status closed">🗄️ Case closed</p>
+        {% else %}
         <p class="status {{ 'done' if b.mine else 'todo' }}">{{ '✓ Your report is filed' if b.mine else '● Awaiting your report' }}</p>
+        {% endif %}
       </div>
     </a>
   </li>

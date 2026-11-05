@@ -3,20 +3,23 @@
 {% block content %}
 <a class="back" href="{{ url_for('views.index') }}">← All specimens</a>
 
-{#- Blind rating: until this agent has filed, the server doesn't send any results at all.
-    Hiding them only with CSS would still leak them to anyone who views the page source. -#}
-{% set show_results = mine is not none %}
+{#- Blind rating: until the results are visible to this agent (filed, case a week old, or closed;
+    see app/cases.py), the server doesn't send them at all. Hiding them only with CSS would still
+    leak them to anyone who views the page source. -#}
+{% set show_results = visible %}
 <article class="dossier">
   <div class="dossier-photo">{% include "_photo.html" %}</div>
   <div class="dossier-body">
     <p class="eyebrow">Specimen #{{ "%03d" | format(b.id) }}{% if b.added_by_name %} · logged by Agent {{ b.added_by_name }}{% endif %}</p>
     <h1>{{ b.name }}</h1>
     {% if b.brand %}<p class="muted">{{ b.brand }}</p>{% endif %}
+    {% if closed %}<p><span class="tag tag-closed">🗄️ Case closed · no longer in shops</span></p>{% endif %}
 
     {% if not show_results %}
     <div class="sealed">
       <span class="stamp stamp-sealed">Sealed</span>
       <p class="lede">{% if b.n %}{{ b.n }} agent{{ 's have' if b.n != 1 else ' has' }} filed. {% endif %}Results stay sealed until you file your own report. No peeking, no groupthink.</p>
+      <p class="muted small mono">Case goes public for everyone on {{ unseals_on.strftime("%a %d %b") }}.</p>
     </div>
     {% elif b.n %}
     <p class="verdict">
@@ -47,6 +50,19 @@
 </details>
 {% endif %}
 
+{% if closed %}
+<section class="panel closed-case">
+  <h2>🗄️ This case is closed</h2>
+  <p>The biscuit has left the shelves, so no new reports are being taken. The results above are public.</p>
+  {% if reopen_pending %}<p class="muted small">{{ reopen_pending }} reopen request{{ 's' if reopen_pending != 1 }} waiting for the control room.</p>{% endif %}
+  <form method="post" action="{{ url_for('views.request_reopen', biscuit_id=b.id) }}" class="stack">
+    <label class="field">Spotted it back in the shops? <small>optional: where and when</small>
+      <input name="note" maxlength="200" placeholder="e.g. Back at Tesco this week, festive packaging">
+    </label>
+    <button class="btn" type="submit">🔓 Request the case be reopened</button>
+  </form>
+</section>
+{% else %}
 <section class="panel">
   <h2>{{ "Amend your field report" if mine else "File your field report" }}</h2>
   <form method="post" action="{{ url_for('views.rate', biscuit_id=b.id) }}" class="rate-form" data-rate-form>
@@ -77,13 +93,14 @@
     <button class="btn btn-wide" type="submit">{{ "Update report" if mine else "Submit report" }}</button>
   </form>
 </section>
+{% endif %}
 
 {% if show_results and reports %}
 <section class="panel">
   <h2>Field reports <span class="muted">({{ reports | length }})</span></h2>
   <ul class="reports">
-    {% for r in reports %}
-    <li class="report">
+    {% for r in reports %}{% set v = votes.get(r.id, {"count": 0, "mine": false}) %}
+    <li class="report" id="r{{ r.id }}">
       <div class="report-head">
         <span class="avatar" aria-hidden="true">{{ r.avatar }}</span>
         <strong>Agent {{ r.name }}</strong>
@@ -95,6 +112,16 @@
         {% if is_purist(r.scores) %}<span class="chip chip-purist">{{ PURIST_LABEL }}</span>{% endif %}
       </div>
       {% if r.comment %}<blockquote>{{ r.comment }}</blockquote>{% endif %}
+      <div class="report-foot">
+        {% if r.member_id == me.id %}
+        <span class="muted small">👍 {{ v.count }} on your report</span>
+        {% else %}
+        <form method="post" action="{{ url_for('views.thumb_report', rating_id=r.id) }}">
+          <button class="btn btn-small {{ '' if v.mine else 'btn-ghost' }}" type="submit" aria-pressed="{{ 'true' if v.mine else 'false' }}"
+                  title="{{ 'Take back your thumbs-up' if v.mine else 'Funny or useful? Thumbs it up (earns them Biscuit Points)' }}">👍 {{ v.count }}</button>
+        </form>
+        {% endif %}
+      </div>
     </li>
     {% endfor %}
   </ul>

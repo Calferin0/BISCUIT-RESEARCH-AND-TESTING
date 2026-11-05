@@ -67,6 +67,18 @@ internal goes in it (see `.gitignore`).
   scouting report uses Open Food Facts' structured query `brands_tags AND categories_tags:en:biscuits
   AND countries_tags:en:united-kingdom` (plain text search drags in non-UK and non-biscuit
   items), is cached 6 h per query, and loads via JS so a slow OFF never blocks the page.
+- **D16: case lifecycle** (schema v5, CF 2026-11-05; relaxes D10). A case goes **public**
+  7 days after the biscuit was logged, or immediately when **closed** (biscuit gone from shops;
+  admin closes, agents *request* reopens, admin approves). The rule lives in `app/cases.py`
+  (`can_see`). The leaderboard shows every biscuit's **name and place** to everyone and seals
+  only scores and anything derived from them (verdict stamp, award detail, an agent's score for
+  it, an agent's "avg given", which is computed only over biscuits the viewer can see). Known
+  residual: agent-award details (e.g. Golden Retriever's average) still average over all of an
+  agent's reports (2 or more), a blurred hint rather than a single score. Closed cases take no
+  new or amended reports.
+- **Thumbs-up on field reports** (`report_votes`): only on others' reports, only once you can
+  see them. These feed Biscuit Points.
+- **Migrations are idempotent:** columns are added via `ADDED_COLUMNS` and only if missing.
 - **Next build:** the roadmap's "later" items (`app/roadmap.json`).
 
 ## Architecture

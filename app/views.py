@@ -11,7 +11,7 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, url_for)
 
-from . import awards, db, images, recommend, scoring, similarity, util
+from . import awards, cases, db, images, recommend, scoring, similarity, util
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -106,8 +106,10 @@ def leave():
 @bp.get("/")
 @agent_required
 def index():
-    biscuits = db.list_biscuits(g.member["id"])
-    todo = sum(1 for b in biscuits if not b["mine"])
+    today = date.today()
+    biscuits = [{**dict(b), "visible": cases.can_see(b, b["mine"], today), "closed": cases.is_closed(b)}
+                for b in db.list_biscuits(g.member["id"])]
+    todo = sum(1 for b in biscuits if not b["mine"] and not b["closed"])
     return render_template("index.html", biscuits=biscuits, todo=todo)
 
 
@@ -116,19 +118,27 @@ def index():
 def biscuit(biscuit_id: int):
     b = _active_biscuit_or_404(biscuit_id)
     mine = db.get_rating(g.member["id"], biscuit_id)
-    # Blind rating: other people's results aren't even fetched until you've filed your own.
+    # Blind rating: others' results aren't even fetched until you've filed, the case is a week
+    # old, or it's closed (app/cases.py).
+    visible = cases.can_see(b, mine is not None, date.today())
     return render_template(
-        "biscuit.html", b=b, mine=mine,
-        reports=db.ratings_for_biscuit(biscuit_id) if mine else [],
-        cats=db.category_averages(biscuit_id) if mine else {},
+        "biscuit.html", b=b, mine=mine, visible=visible,
+        closed=cases.is_closed(b), unseals_on=cases.unseals_on(b),
+        reports=db.ratings_for_biscuit(biscuit_id) if visible else [],
+        cats=db.category_averages(biscuit_id) if visible else {},
+        votes=db.report_votes(biscuit_id, g.member["id"]) if visible else {},
+        reopen_pending=db.reopen_request_count(biscuit_id),
     )
 
 
 @bp.post("/b/<int:biscuit_id>/rate")
 @agent_required
 def rate(biscuit_id: int):
-    _active_biscuit_or_404(biscuit_id)
+    b = _active_biscuit_or_404(biscuit_id)
     back = redirect(url_for("views.biscuit", biscuit_id=biscuit_id))
+    if cases.is_closed(b):
+        flash("This case is closed: the biscuit's no longer in shops. Request a reopen if it's back.", "error")
+        return back
 
     purist = bool(request.form.get(scoring.PURIST_FIELD))
     skipped = scoring.SKIPPABLE_KEYS if purist else ()
@@ -156,6 +166,37 @@ def rate(biscuit_id: int):
               else "Field report filed. Crumbs logged as evidence.", "celebrate")
     # Post/Redirect/Get: a refresh after submitting won't resubmit the form.
     return back
+
+
+@bp.post("/b/<int:biscuit_id>/reopen")
+@agent_required
+def request_reopen(biscuit_id: int):
+    b = _active_biscuit_or_404(biscuit_id)
+    back = redirect(url_for("views.biscuit", biscuit_id=biscuit_id))
+    if not cases.is_closed(b):
+        flash("That case is already open.", "info")
+    elif db.add_reopen_request(biscuit_id, g.member["id"], request.form.get("note", "").strip()[:200]):
+        flash("Reopen request sent to the control room. Back on the shelves? Nice spot. 🕵️", "celebrate")
+    else:
+        flash("You've already asked. The control room will get to it.", "info")
+    return back
+
+
+@bp.post("/reports/<int:rating_id>/thumb")
+@agent_required
+def thumb_report(rating_id: int):
+    """👍 another agent's field report. Not your own, and only once you can see it."""
+    owner = db.rating_owner(rating_id)
+    if owner is None:
+        abort(404)
+    b = _active_biscuit_or_404(owner["biscuit_id"])
+    if owner["member_id"] == g.member["id"]:
+        flash("Nice try. You can't thumbs-up your own report. 😏", "error")
+    elif not cases.can_see(b, db.get_rating(g.member["id"], b["id"]) is not None, date.today()):
+        abort(403)
+    else:
+        db.toggle_report_vote(rating_id, g.member["id"])
+    return redirect(url_for("views.biscuit", biscuit_id=b["id"]) + f"#r{rating_id}")
 
 
 @bp.post("/b/<int:biscuit_id>/photo")
@@ -361,9 +402,19 @@ def working_on_it():
 @bp.get("/leaderboard")
 @agent_required
 def leaderboard():
+    today = date.today()
+    # `scored`: biscuits whose *scores* this viewer may see. Names and places show for everyone.
+    scored = {b["id"] for b in db.list_biscuits(g.member["id"]) if cases.can_see(b, b["mine"], today)}
+    data = db.awards_data()
+    # An agent's "avg given" over *all* their reports leaks sealed scores (1 report + a public
+    # Soulmate name = that biscuit's score). So average only over biscuits this viewer can see.
+    visible_vals: dict[int, list[int]] = {}
+    for r in data["ratings"]:
+        if r["biscuit_id"] in scored:
+            visible_vals.setdefault(r["member_id"], []).extend(r["scores"].values())
+    given = {m: sum(v) / len(v) for m, v in visible_vals.items() if v}
     return render_template("leaderboard.html", ranked=db.leaderboard(), agents=db.agent_stats(),
-                           awards=awards.compute(db.awards_data()),
-                           rated=db.rated_biscuit_ids(g.member["id"]))
+                           awards=awards.compute(data), scored=scored, given=given)
 
 
 @bp.get("/uploads/<path:filename>")

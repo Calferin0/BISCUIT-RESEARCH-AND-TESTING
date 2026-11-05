@@ -18,7 +18,7 @@ from flask.cli import with_appcontext
 from . import similarity
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -39,7 +39,9 @@ CREATE TABLE IF NOT EXISTS biscuits (
     image_source TEXT,                -- 'upload', 'Open Food Facts' or the pasted URL
     added_by     INTEGER REFERENCES members(id),
     active       INTEGER NOT NULL DEFAULT 1,
-    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    case_status  TEXT    NOT NULL DEFAULT 'open',  -- v5: open | closed (no longer in shops)
+    closed_at    TEXT                              -- v5
 );
 CREATE INDEX IF NOT EXISTS idx_biscuits_image_hash ON biscuits(image_hash);
 
@@ -98,7 +100,39 @@ CREATE TABLE IF NOT EXISTS drops (
     created_at TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+-- v5: requests to reopen a closed case because the biscuit is back in shops.
+CREATE TABLE IF NOT EXISTS reopen_requests (
+    id          INTEGER PRIMARY KEY,
+    biscuit_id  INTEGER NOT NULL REFERENCES biscuits(id),
+    member_id   INTEGER NOT NULL REFERENCES members(id),
+    note        TEXT    NOT NULL DEFAULT '',
+    status      TEXT    NOT NULL DEFAULT 'pending',  -- pending | approved | declined
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    resolved_at TEXT
+);
+
+-- v5: thumbs-up on other agents' field notes (feeds Biscuit Points).
+CREATE TABLE IF NOT EXISTS report_votes (
+    rating_id INTEGER NOT NULL REFERENCES ratings(id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members(id),
+    PRIMARY KEY (rating_id, member_id)
+) WITHOUT ROWID;
 """
+
+# v4 -> v5 adds columns to an existing table, which CREATE TABLE IF NOT EXISTS can't do.
+# Applied only where missing, so the migration is idempotent (safe to re-run on any file).
+ADDED_COLUMNS = {
+    "biscuits": (("case_status", "TEXT NOT NULL DEFAULT 'open'"), ("closed_at", "TEXT")),
+}
+
+
+def _add_missing_columns(conn: sqlite3.Connection) -> None:
+    for table, columns in ADDED_COLUMNS.items():
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, decl in columns:
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
 
 # v1 had one column per category (dunk, crunch, ...). Those categories don't map onto the v2
 # set, so v1 ratings are parked in ratings_v1 rather than converted. Nothing is deleted.
@@ -157,7 +191,9 @@ def init_db(path: Path) -> None:
             _backup(conn, path, version)  # every upgrade, even additive ones, keeps a pre-upgrade copy
         if version == 1:
             conn.executescript(MIGRATE_1_TO_2)
-        # v2 -> v3 -> v4 only add tables, which SCHEMA's CREATE ... IF NOT EXISTS covers.
+        if version > 0:
+            _add_missing_columns(conn)
+        # Everything else from v2 on only adds tables, which SCHEMA's CREATE ... IF NOT EXISTS covers.
         conn.executescript(SCHEMA)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
@@ -474,6 +510,78 @@ def set_suggestion_status(suggestion_id: int, status: str, response: str) -> Non
     conn.execute("UPDATE suggestions SET status = ?, response = ?, updated_at = datetime('now') WHERE id = ?",
                  (status, response, suggestion_id))
     conn.commit()
+
+
+# --- case lifecycle ---------------------------------------------------------------------
+
+def set_case_status(biscuit_id: int, closed: bool) -> None:
+    conn = get_db()
+    with conn:
+        conn.execute(
+            "UPDATE biscuits SET case_status = ?, closed_at = CASE WHEN ? THEN datetime('now') END WHERE id = ?",
+            ("closed" if closed else "open", int(closed), biscuit_id),
+        )
+        if not closed:  # reopening settles any outstanding requests for it
+            conn.execute("""UPDATE reopen_requests SET status = 'approved', resolved_at = datetime('now')
+                            WHERE biscuit_id = ? AND status = 'pending'""", (biscuit_id,))
+
+
+def add_reopen_request(biscuit_id: int, member_id: int, note: str) -> bool:
+    """False if this agent already has a pending request for this biscuit."""
+    conn = get_db()
+    if conn.execute("SELECT 1 FROM reopen_requests WHERE biscuit_id = ? AND member_id = ? AND status = 'pending'",
+                    (biscuit_id, member_id)).fetchone():
+        return False
+    conn.execute("INSERT INTO reopen_requests (biscuit_id, member_id, note) VALUES (?, ?, ?)",
+                 (biscuit_id, member_id, note))
+    conn.commit()
+    return True
+
+
+def pending_reopen_requests() -> list[sqlite3.Row]:
+    return get_db().execute(
+        """SELECT q.*, b.name AS biscuit, m.name AS member, m.avatar
+           FROM reopen_requests q JOIN biscuits b ON b.id = q.biscuit_id JOIN members m ON m.id = q.member_id
+           WHERE q.status = 'pending' ORDER BY q.created_at"""
+    ).fetchall()
+
+
+def decline_reopen_request(request_id: int) -> None:
+    conn = get_db()
+    conn.execute("UPDATE reopen_requests SET status = 'declined', resolved_at = datetime('now') WHERE id = ?",
+                 (request_id,))
+    conn.commit()
+
+
+def reopen_request_count(biscuit_id: int) -> int:
+    return get_db().execute("SELECT COUNT(*) FROM reopen_requests WHERE biscuit_id = ? AND status = 'pending'",
+                            (biscuit_id,)).fetchone()[0]
+
+
+# --- thumbs-up on field notes -----------------------------------------------------------
+
+def rating_owner(rating_id: int) -> sqlite3.Row | None:
+    return get_db().execute("SELECT member_id, biscuit_id FROM ratings WHERE id = ?", (rating_id,)).fetchone()
+
+
+def toggle_report_vote(rating_id: int, member_id: int) -> None:
+    conn = get_db()
+    with conn:
+        removed = conn.execute("DELETE FROM report_votes WHERE rating_id = ? AND member_id = ?",
+                               (rating_id, member_id)).rowcount
+        if not removed:
+            conn.execute("INSERT INTO report_votes (rating_id, member_id) VALUES (?, ?)", (rating_id, member_id))
+
+
+def report_votes(biscuit_id: int, viewer_id: int) -> dict[int, dict]:
+    """{rating_id: {"count": n, "mine": bool}} for one biscuit's reports."""
+    rows = get_db().execute(
+        """SELECT v.rating_id, COUNT(*) AS n, MAX(v.member_id = ?) AS mine
+           FROM report_votes v JOIN ratings r ON r.id = v.rating_id
+           WHERE r.biscuit_id = ? GROUP BY v.rating_id""",
+        (viewer_id, biscuit_id),
+    ).fetchall()
+    return {r["rating_id"]: {"count": r["n"], "mine": bool(r["mine"])} for r in rows}
 
 
 # --- drops ------------------------------------------------------------------------------

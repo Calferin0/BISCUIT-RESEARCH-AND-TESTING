@@ -11,7 +11,10 @@
         "Live presence in the control room, so nobody gets cut off mid-review",
         "E-STOP button. You know what it's for.",
         "Suggestion box and this page",
-        "Dashboard: biscuit drops timeline, your next tasting, and a scouting report of UK biscuits nobody's tried yet"
+        "Dashboard: biscuit drops timeline, your next tasting, and a scouting report of UK biscuits nobody's tried yet",
+        "Cases go public a week after logging. The leaderboard now shows every biscuit's name and place, with only the score sealed",
+        "Closed cases for biscuits that leave the shops, plus reopen requests when they come back",
+        "👍 on other agents' field reports. Funny ones will earn Biscuit Points"
       ]
     }
   ],
@@ -32,28 +35,28 @@
     },
     {
       "id": "public-after-a-week",
-      "status": "later",
+      "status": "done",
       "icon": "📂",
       "title": "Cases go public after a week",
       "blurb": "A week after a biscuit is logged, its results unseal for everyone. Before then the leaderboard shows the biscuit, just not its score."
     },
     {
       "id": "limited-time",
-      "status": "later",
+      "status": "done",
       "icon": "⏳",
       "title": "Limited-time cases",
       "blurb": "When a biscuit leaves the shelves, its case closes and is filed as 'no longer available'."
     },
     {
       "id": "reopen",
-      "status": "later",
+      "status": "done",
       "icon": "🔓",
       "title": "Reopen requests",
       "blurb": "Spotted a discontinued biscuit back in the shops? Request its case be reopened."
     },
     {
       "id": "points",
-      "status": "later",
+      "status": "now",
       "icon": "🪙",
       "title": "Biscuit Points",
       "blurb": "Earn points by filing reports and writing reviews that get thumbs up. Spend them on cosmetic upgrades."
