@@ -9,10 +9,10 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-05, end of day):** schema v7. Everything on the original roadmap is built:
-dashboard and drops, case lifecycle, reopen requests, thumbs-up, Biscuit Points and shop, Biscuit
-Radar. 124 tests pass. Live BRT was deployed at 16:27 (schema v5: up to points earning); the
-shop and radar are pushed but **not yet deployed** to the live app. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
+**Status (2026-11-05, end of day):** schema v7, everything on the original roadmap built and
+**deployed** (17:17, via `deploy-brt.bat /yes`): dashboard and drops, case lifecycle, reopen
+requests, thumbs-up, Biscuit Points and shop, Biscuit Radar (26 OSM shops imported live).
+124 tests pass. In daily use by the team [MEASURED]. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
 internal goes in it (see `.gitignore`).
@@ -92,8 +92,12 @@ internal goes in it (see `.gitignore`).
   (postcodes.io). Shops come from an OpenStreetMap Overpass import (admin, deduped on `osm_ref`)
   or are added by agents by postcode. Prices are team-reported with full history; the newest
   per (shop, biscuit) is current. Overpass is slow and often "at capacity" (502), both seen
-  2026-11-05 [MEASURED], hence a 45 s timeout and mirror fallback. **A live OSM import was NOT
-  verified end to end** (all mirrors busy at the time); the import path is tested with a mock.
+  2026-11-05 [MEASURED], hence a 45 s timeout and mirror fallback. A live import worked on
+  2026-11-05 at 17:18 (26 shops) [MEASURED].
+- **Running .bat files from Claude's shell:** the `&` in "R&D" breaks `cmd /c script.bat`. Use
+  `Start-Process cmd.exe -ArgumentList ('/s /c ""<full path>\deploy-brt.bat" /yes"')` with
+  redirected output. Never pipe a script that starts BRT, because the server inherits the pipe
+  and the command never returns.
 - **Next build:** suggestions from the weekly loop (`WEEKLY.md`).
 
 ## Architecture
