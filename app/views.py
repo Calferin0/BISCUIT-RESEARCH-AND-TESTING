@@ -11,7 +11,7 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, url_for)
 
-from . import awards, cases, db, images, recommend, scoring, similarity, util
+from . import awards, cases, db, images, points, recommend, scoring, similarity, util
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -48,6 +48,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.leaderboard": "At awards night",
         "views.suggestions": "At the suggestion box",
         "views.dashboard": "Checking the dashboard",
+        "views.points_page": "Counting their Biscuit Points",
         "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
     }.get(endpoint)
@@ -350,6 +351,18 @@ def edit_drop(drop_id: int | None = None):
         db.add_drop(values, g.member["id"])
         flash("Drop logged. The team has been alerted (they'll see it on the dashboard). 📅", "celebrate")
     return redirect(url_for("views.dashboard") + "#drops")
+
+
+@bp.get("/points")
+@agent_required
+def points_page():
+    table = sorted(({**dict(a), "points": points.total(a)} for a in db.points_activity()),
+                   key=lambda a: (-a["points"], a["name"].lower()))
+    mine = next((a for a in db.points_activity(g.member["id"])), None)
+    my_points = points.total(mine) if mine else 0
+    return render_template("points.html", table=table, rules=points.RULES, rank=points.rank,
+                           breakdown=points.breakdown(mine) if mine else [], my_points=my_points,
+                           next_rank=points.next_rank(my_points))
 
 
 SUGGESTION_MAX = 1000

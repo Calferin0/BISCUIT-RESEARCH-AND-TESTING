@@ -14,7 +14,8 @@
         "Dashboard: biscuit drops timeline, your next tasting, and a scouting report of UK biscuits nobody's tried yet",
         "Cases go public a week after logging. The leaderboard now shows every biscuit's name and place, with only the score sealed",
         "Closed cases for biscuits that leave the shops, plus reopen requests when they come back",
-        "👍 on other agents' field reports. Funny ones will earn Biscuit Points"
+        "👍 on other agents' field reports. Funny ones will earn Biscuit Points",
+        "🪙 Biscuit Points: earn for reports, proper field notes, thumbs-ups, new specimens, drops and suggestions. Tap your badge to see your tally and rank"
       ]
     }
   ],
@@ -58,8 +59,8 @@
       "id": "points",
       "status": "now",
       "icon": "🪙",
-      "title": "Biscuit Points",
-      "blurb": "Earn points by filing reports and writing reviews that get thumbs up. Spend them on cosmetic upgrades."
+      "title": "Biscuit Points: the shop",
+      "blurb": "Earning is live (tap your badge). Next: spend your points on cosmetic upgrades."
     },
     {
       "id": "price-map",

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, g, render_template, request
 
-from . import db, scoring, util
+from . import db, points, scoring, util
 from .presence import Presence
 
 
@@ -69,8 +69,14 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.context_processor
     def inject_globals() -> dict:
+        me = g.get("member")
+        my_points = None
+        if me is not None:  # for the header badge; one small query per page
+            row = next(iter(db.points_activity(me["id"])), None)
+            my_points = points.total(row) if row else 0
         return {
-            "me": g.get("member"),
+            "me": me,
+            "my_points": my_points,
             "CATEGORIES": scoring.CATEGORIES,
             "PURIST_FIELD": scoring.PURIST_FIELD,
             "PURIST_LABEL": scoring.PURIST_LABEL,

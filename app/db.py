@@ -16,6 +16,7 @@ from flask import Flask, current_app, g
 from flask.cli import with_appcontext
 
 from . import similarity
+from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
 SCHEMA_VERSION = 5
@@ -582,6 +583,29 @@ def report_votes(biscuit_id: int, viewer_id: int) -> dict[int, dict]:
         (viewer_id, biscuit_id),
     ).fetchall()
     return {r["rating_id"]: {"count": r["n"], "mine": bool(r["mine"])} for r in rows}
+
+
+# --- biscuit points ---------------------------------------------------------------------
+
+def points_activity(member_id: int | None = None) -> list[sqlite3.Row]:
+    """Per active agent, the activity counts that points.RULES turn into Biscuit Points."""
+    where, params = ("AND m.id = ?", (member_id,)) if member_id is not None else ("", ())
+    return get_db().execute(
+        f"""SELECT m.id, m.name, m.avatar,
+              (SELECT COUNT(*) FROM ratings r WHERE r.member_id = m.id) AS reports,
+              (SELECT COUNT(*) FROM ratings r WHERE r.member_id = m.id
+                 AND length(trim(r.comment)) >= {NOTE_MIN_CHARS}) AS notes,
+              (SELECT COUNT(*) FROM report_votes v JOIN ratings r ON r.id = v.rating_id
+                 WHERE r.member_id = m.id AND v.member_id != m.id) AS thumbs,
+              (SELECT COUNT(*) FROM biscuits b WHERE b.added_by = m.id AND b.active = 1) AS specimens,
+              (SELECT COUNT(*) FROM drops d WHERE d.added_by = m.id AND d.active = 1) AS drops,
+              (SELECT COUNT(*) FROM suggestions s WHERE s.member_id = m.id) AS suggestions,
+              (SELECT COUNT(*) FROM suggestions s WHERE s.member_id = m.id AND s.status = 'shipped') AS shipped
+            FROM members m
+            WHERE m.active = 1 {where}
+            ORDER BY m.name COLLATE NOCASE""",
+        params,
+    ).fetchall()
 
 
 # --- drops ------------------------------------------------------------------------------

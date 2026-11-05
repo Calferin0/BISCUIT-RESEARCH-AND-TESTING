@@ -382,6 +382,18 @@ blockquote { margin: 10px 0 0; padding: 0 0 0 12px; border-left: 3px solid var(-
 .report-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
 .row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 
+/* --- biscuit points --------------------------------------------------------------------- */
+a.agent-badge { text-decoration: none; }
+a.agent-badge:hover { border-color: var(--accent); color: var(--ink); }
+.points-pill { color: #ffd23f; font-weight: 700; }
+.points-big { font: 900 1.6rem/1 var(--mono); color: #ffd23f; }
+.points-table td:nth-child(2), .points-table td:nth-child(3) { text-align: right; white-space: nowrap; }
+.points-ranking { list-style: none; }
+.points-ranking li { display: flex; align-items: center; gap: 10px; }
+.points-ranking li .rank-name { flex: 1 1 auto; color: var(--ink); }
+.points-ranking li.me .rank-name { color: var(--accent); font-weight: 800; }
+.shop-teaser { border-style: dashed; text-align: center; }
+
 /* --- admin: live presence ---------------------------------------------------------------- */
 .live-panel h2 { display: flex; align-items: center; gap: 8px; }
 .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgb(63 191 116 / .6); animation: pulse 2s infinite; }

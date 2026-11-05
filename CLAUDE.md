@@ -79,6 +79,10 @@ internal goes in it (see `.gitignore`).
 - **Thumbs-up on field reports** (`report_votes`): only on others' reports, only once you can
   see them. These feed Biscuit Points.
 - **Migrations are idempotent:** columns are added via `ADDED_COLUMNS` and only if missing.
+- **D17: Biscuit Points are computed, not stored** (`app/points.py` RULES ×
+  `db.points_activity()`), so there's no counter to drift and the rules can be retuned freely.
+  Spending (the shop) will add a ledger of *spends*: balance = earned − spent. **Open
+  question for CF:** what the cosmetics are.
 - **Next build:** the roadmap's "later" items (`app/roadmap.json`).
 
 ## Architecture
