@@ -7,6 +7,8 @@ cd /d "%~dp0"
 set "PORT=%BRT_PORT%"
 if "%PORT%"=="" set "PORT=8080"
 
+rem /yes skips the "people are on" question (for unattended runs; nothing to answer it with).
+if /i "%~1"=="/yes" goto :pull
 set "LIVE="
 for /f "delims=" %%n in ('curl.exe -s -f -m 3 http://127.0.0.1:%PORT%/admin/live-count 2^>nul') do set "LIVE=%%n"
 if "%LIVE%"=="" goto :pull

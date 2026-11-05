@@ -136,6 +136,7 @@ $env:BRT_DATA_DIR="<scratch dir>"; .venv\Scripts\flask --app app demo-seed   # d
 .\stop-brt.bat     # warns if agents are live, then kills every .venv pythonw (/force skips the check)
 .\export-suggestions.bat   # weekly: open suggestions -> suggestions\YYYY-MM-DD.md (git-ignored)
 .\deploy-brt.bat           # weekly: presence check, pull main, pip, pytest, restart (refuses on red tests)
+                           # /yes skips the presence question (unattended runs)
 ```
 `.claude/launch.json` has a `brt-demo` preview config on **port 8090** with a scratchpad data
 dir. Never point it at the real data dir or port 8080: CF's real BRT runs on 8080, and on
