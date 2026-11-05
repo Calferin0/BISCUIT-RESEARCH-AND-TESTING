@@ -495,6 +495,43 @@ a.agent-badge:hover { border-color: var(--accent); color: var(--ink); }
 .edit-agent { margin: 0 0 8px; }
 .edit-agent summary { cursor: pointer; color: var(--muted); }
 
+/* --- loot-only flair -------------------------------------------------------------------- */
+.name-oat { color: #d9b77c; }
+.name-wafer { color: #ff9ec7; }
+.name-galaxy { background: linear-gradient(90deg, #6b3fa0, #c792ff, #3a2a6b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.name-caramel { background: linear-gradient(90deg, #ff9a1f, #ffd27a, #c46a12, #ff9a1f); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: caramel 3s linear infinite; }
+@keyframes caramel { to { background-position: 300% 0; } }
+.frame-teering { box-shadow: 0 0 0 3px rgb(150 95 40 / .55), 0 0 0 5px rgb(150 95 40 / .2); }
+.frame-doily { box-shadow: 0 0 0 2px #fff; outline: 2px dotted #fff; outline-offset: 2px; }
+.frame-foil { background: linear-gradient(135deg, #b8860b, #ffe28a, #b8860b, #fff4c2, #b8860b); padding: 2px; box-shadow: 0 0 10px rgb(255 215 100 / .6); }
+.frame-holotin { background: conic-gradient(from 0deg, #ff5fa2, #ffd23f, #3ad6ff, #b36bff, #ff5fa2); padding: 2px; animation: holo 2s linear infinite; box-shadow: 0 0 14px rgb(179 107 255 / .7); }
+@keyframes holo { to { filter: hue-rotate(360deg); } }
+
+/* --- mystery tins ----------------------------------------------------------------------- */
+.tin-panel { text-align: center; }
+.tin { position: relative; width: 120px; height: 120px; margin: 6px auto 16px; }
+.tin-body { position: absolute; inset: 22px 6px 0; display: grid; place-items: center; border-radius: 14px;
+  background: linear-gradient(180deg, #c8102e, #8a0a1f); border: 3px solid #ffd23f; color: #ffd23f; font: 900 2.4rem/1 var(--mono);
+  box-shadow: inset 0 -10px 0 rgb(0 0 0 / .2), 0 10px 24px rgb(0 0 0 / .45); }
+.tin-lid { position: absolute; left: 0; right: 0; top: 6px; height: 24px; border-radius: 10px; background: linear-gradient(180deg, #ffd23f, #c9971a); border: 2px solid #8a6a10; }
+.tin-panel.opening .tin { animation: tin-shake .12s linear infinite; }
+.tin-panel.opening .tin-lid { animation: lid-pop .9s ease-out forwards; }
+@keyframes tin-shake { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes lid-pop { 60% { transform: translateY(-10px) rotate(-6deg); } 100% { transform: translateY(-40px) rotate(-25deg); opacity: 0; } }
+.reveal { position: relative; overflow: hidden; text-align: center; border-width: 2px; animation: reveal-in .6s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes reveal-in { from { transform: scale(.5); opacity: 0; } }
+.reveal.rarity-uncommon { border-color: var(--r-uncommon); }
+.reveal.rarity-rare { border-color: var(--r-rare); box-shadow: 0 0 30px rgb(58 155 255 / .4); }
+.reveal.rarity-epic { border-color: var(--r-epic); box-shadow: 0 0 40px rgb(179 107 255 / .5); }
+.reveal.rarity-legendary { border-color: var(--r-legendary); box-shadow: 0 0 60px rgb(255 154 31 / .7); }
+.reveal-burst { position: absolute; inset: -50%; background: conic-gradient(from 0deg, transparent 0 10deg, rgb(255 255 255 / .06) 10deg 20deg); animation: spin 8s linear infinite; pointer-events: none; }
+.reveal.rarity-legendary .reveal-burst { background: conic-gradient(from 0deg, transparent 0 10deg, rgb(255 154 31 / .18) 10deg 20deg); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.reveal-tier { font-size: 1rem; position: relative; }
+.reveal-title { font-size: 1.8rem; position: relative; }
+.reveal-quip { position: relative; font-style: italic; }
+.loot-item.locked { opacity: .55; filter: grayscale(.6); }
+
 /* --- admin: live presence ---------------------------------------------------------------- */
 .live-panel h2 { display: flex; align-items: center; gap: 8px; }
 .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgb(63 191 116 / .6); animation: pulse 2s infinite; }

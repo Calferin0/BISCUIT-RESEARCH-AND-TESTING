@@ -8,12 +8,13 @@
   <h1>🛍️ The Biscuit Shop</h1>
   <p class="lede">Balance: <strong class="points-big">🪙 {{ balance }}</strong>. Spending never lowers your rank. Ranks count everything you've ever earned.</p>
   <p class="shop-preview">You appear as: {{ agent(me.id, me.name, me.avatar) }}</p>
+  <p><a class="btn" href="{{ url_for('views.loot_page') }}">🎁 Feeling lucky? Mystery Tins</a></p>
 </section>
 
 {% for slot, label in slots.items() %}
 <h2 class="section-title" id="{{ slot }}">{{ label }}</h2>
 <ul class="shop-grid">
-  {% for item in catalogue if item.slot == slot %}
+  {% for item in catalogue if item.slot == slot and (not item.loot_tier or item.key in owned) %}
   {% set is_owned = item.key in owned %}{% set is_on = item.key in equipped_keys %}
   <li class="shop-item{{ ' owned' if is_owned }}{{ ' equipped' if is_on }}">
     <div class="shop-sample">
@@ -21,7 +22,7 @@
       {%- elif slot == 'color' -%}<span class="agent-name-text name-{{ item.value }}">Agent {{ me.name }}</span>
       {%- else -%}<span class="avatar-frame frame-{{ item.value }}">{{ me.avatar }}</span>{%- endif -%}
     </div>
-    <strong>{{ item.name }}</strong>
+    <strong>{{ item.name }}{% if item.loot_tier %} <span class="rarity-badge inline rarity-{{ item.loot_tier }}">🎁 loot</span>{% endif %}</strong>
     <p class="muted small">{{ item.blurb }}</p>
     <div class="shop-actions">
       {% if is_on %}

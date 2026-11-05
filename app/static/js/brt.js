@@ -241,6 +241,21 @@ if (scouting) {
   load();
 }
 
+// Mystery Tin: shake the tin for a beat before submitting, for drama. (No effect on the odds:
+// the server rolls when the form arrives.)
+const tinForm = document.querySelector("[data-tin-form]");
+if (tinForm) {
+  tinForm.addEventListener("submit", (e) => {
+    if (tinForm.dataset.go) return;
+    e.preventDefault();
+    tinForm.closest(".tin-panel").classList.add("opening");
+    tinForm.querySelector("button").disabled = true;
+    setTimeout(() => { tinForm.dataset.go = "1"; tinForm.submit(); }, 900);
+  });
+}
+const revealEl = document.querySelector("[data-reveal]");
+if (revealEl && /rarity-(rare|epic|legendary)/.test(revealEl.className)) crumbShower();
+
 // Admin: copy join links, and confirm destructive-ish actions.
 document.addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-copy]");

@@ -9,9 +9,9 @@ from datetime import date
 from pathlib import Path
 
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
-                   request, send_from_directory, url_for)
+                   request, send_from_directory, session, url_for)
 
-from . import awards, cases, db, images, points, radar, rarity, recommend, scoring, shop, similarity, util
+from . import awards, cases, db, images, loot, points, radar, rarity, recommend, scoring, shop, similarity, util
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -412,6 +412,11 @@ def _earned(member_id: int) -> int:
     return points.total(row) if row else 0
 
 
+def balance(member_id: int) -> int:
+    """Spendable points: lifetime earned - shop spend + ledger (tins, duels). One definition."""
+    return _earned(member_id) - db.points_spent(member_id) + db.ledger_total(member_id)
+
+
 @bp.get("/points")
 @agent_required
 def points_page():
@@ -429,9 +434,8 @@ def points_page():
 @agent_required
 def shop_page():
     me_id = g.member["id"]
-    balance = _earned(me_id) - db.points_spent(me_id)
     equipped = shop.flair_for(db.equipped_items().get(me_id, []))
-    return render_template("shop.html", slots=shop.SLOTS, catalogue=shop.CATALOGUE, balance=balance,
+    return render_template("shop.html", slots=shop.SLOTS, catalogue=shop.CATALOGUE, balance=balance(me_id),
                            owned=db.owned_items(me_id), equipped_keys=set(db.equipped_items().get(me_id, [])),
                            preview=equipped)
 
@@ -440,16 +444,42 @@ def shop_page():
 @agent_required
 def shop_buy(item_key: str):
     item = shop.BY_KEY.get(item_key)
-    if item is None:
+    if item is None or item.loot_tier is not None:  # loot-only items can't be bought
         abort(404)
     me_id = g.member["id"]
-    error = db.buy(me_id, item.key, item.cost, _earned(me_id) - db.points_spent(me_id))
+    error = db.buy(me_id, item.key, item.cost, balance(me_id))
     if error:
         flash(error, "error")
     else:
         db.equip(me_id, item.slot, item.key)  # buying it means you want to wear it
         flash(f"Purchased and equipped: {item.name}. Looking sharp, agent. 🛍️", "celebrate")
     return redirect(url_for("views.shop_page") + f"#{item.slot}")
+
+
+@bp.route("/loot", methods=["GET", "POST"])
+@agent_required
+def loot_page():
+    me_id = g.member["id"]
+    if request.method == "POST":
+        if balance(me_id) < loot.BOX_COST:
+            flash(f"A Mystery Tin costs {loot.BOX_COST} points. Go file some reports!", "error")
+            return redirect(url_for("views.loot_page"))
+        pull = loot.open_tin(db.owned_items(me_id), random.SystemRandom())
+        db.grant_loot(me_id, None if (pull.item is None or pull.duplicate) else pull.item.key,
+                      loot.BOX_COST, pull.points, "Mystery Tin")
+        # Post/Redirect/Get, so a refresh can't open (and pay for) a second tin.
+        session["loot_reveal"] = {"tier": pull.tier, "item": pull.item.key if pull.item else None,
+                                  "points": pull.points, "duplicate": pull.duplicate, "quip": pull.quip}
+        return redirect(url_for("views.loot_page") + "#reveal")
+    reveal = session.pop("loot_reveal", None)
+    if reveal and reveal["item"]:
+        reveal["item_obj"] = shop.BY_KEY.get(reveal["item"])
+    owned = db.owned_items(me_id)
+    return render_template("loot.html", reveal=reveal, odds=loot.ODDS, cost=loot.BOX_COST,
+                           balance=balance(me_id), tiers=rarity.BY_KEY, ev=loot.expected_value(),
+                           refund=loot.COMMON_REFUND, dupe=loot.DUPE_POINTS,
+                           collection=[i for i in shop.CATALOGUE if i.loot_tier],
+                           owned=owned)
 
 
 @bp.post("/shop/equip/<slot>")

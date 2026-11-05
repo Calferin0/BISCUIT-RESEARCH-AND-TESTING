@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Mystery Tins{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('views.shop_page') }}">← Biscuit Shop</a>
+<section class="hero">
+  <p class="eyebrow">Department of Questionable Decisions</p>
+  <h1>🎁 Mystery Tins</h1>
+  <p class="lede">{{ cost }} points a tin. Inside: exclusive cosmetics you can't buy anywhere, or a handful of points back. Balance: <strong class="points-big">🪙 {{ balance }}</strong></p>
+</section>
+
+{% if reveal %}
+{% set t = tiers[reveal.tier] %}
+<section class="reveal panel rarity-{{ reveal.tier }}" id="reveal" data-reveal>
+  <div class="reveal-burst" aria-hidden="true"></div>
+  <p class="eyebrow reveal-tier">{{ t.icon }} {{ t.label }}</p>
+  {% if reveal.item_obj and not reveal.duplicate %}
+  <h2 class="reveal-title">{{ reveal.item_obj.name }}</h2>
+  <p class="muted">{{ reveal.item_obj.blurb }} It's in your shop collection now: tap to wear it.</p>
+  {% elif reveal.item_obj %}
+  <h2 class="reveal-title">{{ reveal.item_obj.name }} <span class="muted small">(duplicate)</span></h2>
+  <p class="muted">Already yours, so it melted down into <strong>+{{ reveal.points }} points</strong>.</p>
+  {% else %}
+  <h2 class="reveal-title">+{{ reveal.points }} points</h2>
+  {% endif %}
+  <p class="reveal-quip">“{{ reveal.quip }}”</p>
+</section>
+{% endif %}
+
+<section class="panel tin-panel">
+  <div class="tin" aria-hidden="true"><span class="tin-lid"></span><span class="tin-body">?</span></div>
+  <form method="post" data-tin-form>
+    <button class="btn btn-wide tin-btn" type="submit"{% if balance < cost %} disabled{% endif %}>
+      {% if balance < cost %}Need {{ cost - balance }} more points{% else %}🎁 Open a Mystery Tin ({{ cost }} pts){% endif %}
+    </button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>📜 The odds (no tricks)</h2>
+  <table class="table">
+    <thead><tr><th>Tier</th><th>Chance</th><th>You get</th></tr></thead>
+    <tbody>
+      {% for tier, pct in odds %}{% set t = tiers[tier] %}
+      <tr><td class="tier-option tier-{{ tier }}" style="border:0;background:none;padding:6px 0">{{ t.icon }} {{ t.label }}</td>
+          <td class="mono">{{ pct }}%</td>
+          <td class="small">{% if tier == 'common' %}{{ refund[0] }}–{{ refund[1] }} points back{% else %}a random {{ t.label | lower }} cosmetic (duplicate = {{ dupe[tier] }} pts){% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted small">On average you get ~{{ ev | round | int }} points' worth back per {{ cost }}-point tin. The house (the biscuit tin) always wins. Play for the cosmetics, not the profit.</p>
+</section>
+
+<h2 class="section-title">🗃️ The collection</h2>
+<ul class="shop-grid">
+  {% for item in collection %}{% set t = tiers[item.loot_tier] %}
+  <li class="shop-item loot-item rarity-{{ item.loot_tier }}{{ ' owned' if item.key in owned else ' locked' }}">
+    <span class="rarity-badge inline rarity-{{ item.loot_tier }}">{{ t.icon }} {{ t.label }}</span>
+    <strong>{{ item.name if item.key in owned else "???" }}</strong>
+    <p class="muted small">{{ item.blurb if item.key in owned else "Open tins to discover this " ~ item.slot ~ "." }}</p>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

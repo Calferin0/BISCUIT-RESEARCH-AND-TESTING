@@ -715,6 +715,36 @@ def owned_items(member_id: int) -> set[str]:
     return {r[0] for r in get_db().execute("SELECT item_key FROM purchases WHERE member_id = ?", (member_id,))}
 
 
+def ledger_total(member_id: int) -> int:
+    return get_db().execute("SELECT COALESCE(SUM(delta), 0) FROM ledger WHERE member_id = ?",
+                            (member_id,)).fetchone()[0]
+
+
+def ledger_add(member_id: int, delta: int, reason: str, ref: str = "", conn=None) -> None:
+    """Record a points movement. Pass `conn` to join a caller's transaction."""
+    (conn or get_db()).execute("INSERT INTO ledger (member_id, delta, reason, ref) VALUES (?, ?, ?, ?)",
+                               (member_id, delta, reason, ref))
+    if conn is None:
+        get_db().commit()
+
+
+def grant_loot(member_id: int, item_key: str, cost: int, refund: int, reason: str) -> None:
+    """One transaction: pay for the tin, then either own the item or bank the refund."""
+    conn = get_db()
+    with conn:
+        ledger_add(member_id, -cost, reason, "tin", conn)
+        if refund:
+            ledger_add(member_id, refund, f"{reason}: points back", "tin", conn)
+        if item_key:
+            conn.execute("INSERT OR IGNORE INTO purchases (member_id, item_key, cost, source) VALUES (?, ?, 0, 'loot')",
+                         (member_id, item_key))
+
+
+def recent_ledger(member_id: int, limit: int = 12) -> list[sqlite3.Row]:
+    return get_db().execute("SELECT * FROM ledger WHERE member_id = ? ORDER BY id DESC LIMIT ?",
+                            (member_id, limit)).fetchall()
+
+
 def buy(member_id: int, item_key: str, cost: int, balance: int) -> str | None:
     """Record a purchase. Returns an error message, or None on success.
 

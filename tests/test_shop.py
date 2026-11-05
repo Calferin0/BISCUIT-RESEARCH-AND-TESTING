@@ -18,7 +18,9 @@ def rich(app, client, agent_token):
 
 def test_catalogue_is_consistent():
     assert len(shop.BY_KEY) == len(shop.CATALOGUE)
-    assert all(i.slot in shop.SLOTS and i.cost > 0 for i in shop.CATALOGUE)
+    assert all(i.slot in shop.SLOTS for i in shop.CATALOGUE)
+    assert all(i.cost > 0 for i in shop.FOR_SALE)                       # shop items have a price
+    assert all(i.cost == 0 for i in shop.CATALOGUE if i.loot_tier)      # loot is tin-only
 
 
 def test_buy_equip_and_balance(app, rich):
