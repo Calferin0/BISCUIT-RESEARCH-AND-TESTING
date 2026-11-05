@@ -1,0 +1,8 @@
+{#- An agent's name with their shop flair (frame, colour, title).
+    Import with context, so it can see `flair`:  {% from "_agent.html" import agent with context %} -#}
+{%- macro agent(member_id, name, avatar, prefix="Agent ") -%}
+{%- set f = flair.get(member_id, {}) -%}
+<span class="agent-tag"><span class="avatar-frame{% if f.frame %} frame-{{ f.frame }}{% endif %}" aria-hidden="true">{{ avatar }}</span>
+<span class="agent-name-text{% if f.color %} name-{{ f.color }}{% endif %}">{{ prefix }}{{ name }}</span>
+{%- if f.title %}<span class="agent-title">, {{ f.title }}</span>{% endif %}</span>
+{%- endmacro %}

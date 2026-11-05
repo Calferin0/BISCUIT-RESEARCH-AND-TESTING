@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
 {% block title %}{{ b.name }}{% endblock %}
 {% block content %}
 <a class="back" href="{{ url_for('views.index') }}">← All specimens</a>
@@ -102,8 +103,7 @@
     {% for r in reports %}{% set v = votes.get(r.id, {"count": 0, "mine": false}) %}
     <li class="report" id="r{{ r.id }}">
       <div class="report-head">
-        <span class="avatar" aria-hidden="true">{{ r.avatar }}</span>
-        <strong>Agent {{ r.name }}</strong>
+        <strong>{{ agent(r.member_id, r.name, r.avatar) }}</strong>
         {% if r.overall is not none %}<span class="score-num">{{ "%.1f" | format(r.overall) }}</span>{% endif %}
         <time class="muted mono small">{{ r.updated_at[:10] }}</time>
       </div>

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, g, render_template, request
 
-from . import db, points, scoring, util
+from . import db, points, scoring, shop, util
 from .presence import Presence
 
 
@@ -71,12 +71,15 @@ def create_app(test_config: dict | None = None) -> Flask:
     def inject_globals() -> dict:
         me = g.get("member")
         my_points = None
-        if me is not None:  # for the header badge; one small query per page
+        flair: dict = {}
+        if me is not None:  # header badge balance + everyone's flair: a few tiny queries per page
             row = next(iter(db.points_activity(me["id"])), None)
-            my_points = points.total(row) if row else 0
+            my_points = (points.total(row) if row else 0) - db.points_spent(me["id"])
+            flair = {mid: shop.flair_for(keys) for mid, keys in db.equipped_items().items()}
         return {
             "me": me,
             "my_points": my_points,
+            "flair": flair,
             "CATEGORIES": scoring.CATEGORIES,
             "PURIST_FIELD": scoring.PURIST_FIELD,
             "PURIST_LABEL": scoring.PURIST_LABEL,

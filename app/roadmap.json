@@ -15,7 +15,8 @@
         "Cases go public a week after logging. The leaderboard now shows every biscuit's name and place, with only the score sealed",
         "Closed cases for biscuits that leave the shops, plus reopen requests when they come back",
         "👍 on other agents' field reports. Funny ones will earn Biscuit Points",
-        "🪙 Biscuit Points: earn for reports, proper field notes, thumbs-ups, new specimens, drops and suggestions. Tap your badge to see your tally and rank"
+        "🪙 Biscuit Points: earn for reports, proper field notes, thumbs-ups, new specimens, drops and suggestions. Tap your badge to see your tally and rank",
+        "🛍️ The Biscuit Shop: spend points on titles, name colours and avatar frames. Spending never lowers your rank"
       ]
     }
   ],
@@ -57,14 +58,14 @@
     },
     {
       "id": "points",
-      "status": "now",
+      "status": "done",
       "icon": "🪙",
-      "title": "Biscuit Points: the shop",
-      "blurb": "Earning is live (tap your badge). Next: spend your points on cosmetic upgrades."
+      "title": "Biscuit Points and the Biscuit Shop",
+      "blurb": "Earn points by reviewing; spend them on titles, name colours and avatar frames."
     },
     {
       "id": "price-map",
-      "status": "later",
+      "status": "now",
       "icon": "🗺️",
       "title": "Biscuit radius map",
       "blurb": "Shops near the office with biscuit prices that the team can add to and correct."

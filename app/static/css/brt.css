@@ -394,6 +394,30 @@ a.agent-badge:hover { border-color: var(--accent); color: var(--ink); }
 .points-ranking li.me .rank-name { color: var(--accent); font-weight: 800; }
 .shop-teaser { border-style: dashed; text-align: center; }
 
+/* --- shop: agent flair ------------------------------------------------------------------ */
+.agent-tag { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.avatar-frame { display: inline-grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%; font-size: 1.05em; }
+.agent-title { font-style: italic; font-weight: 600; color: var(--muted); }
+.name-custard { color: #f6dc7a; }
+.name-jaffa { color: #ff8a3d; }
+.name-bourbon { color: #c98b5a; }
+.name-mint { color: #7be0b0; }
+.name-party { background: linear-gradient(90deg, #ff5fa2, #ffd23f, #3ad6ff, #8ef05b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.frame-gold { box-shadow: 0 0 0 2px #e8b730, 0 0 10px rgb(232 183 48 / .5); }
+.frame-stamp { box-shadow: 0 0 0 2px var(--red); outline: 1px dashed var(--red); outline-offset: 2px; transform: rotate(-8deg); }
+.frame-rainbow { background: conic-gradient(#ff5fa2, #ffd23f, #8ef05b, #3ad6ff, #b38bff, #ff5fa2); padding: 2px; }
+.frame-sparkle { box-shadow: 0 0 0 2px #fff, 0 0 12px 2px rgb(255 255 255 / .6); animation: sparkle 1.6s ease-in-out infinite; }
+@keyframes sparkle { 50% { box-shadow: 0 0 0 2px #ffd23f, 0 0 18px 4px rgb(255 210 63 / .7); } }
+.shop-preview { font-size: 1.1rem; }
+.shop-grid { list-style: none; padding: 0; margin: 10px 0 20px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.shop-item { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+.shop-item p { margin: 0; }
+.shop-item.owned { border-color: var(--green); }
+.shop-item.equipped { box-shadow: 0 0 0 2px var(--green); }
+.shop-sample { min-height: 2.6em; display: flex; align-items: center; padding: 6px 10px; margin-bottom: 4px; border-radius: 10px; background: var(--bg); font-size: 1.05rem; }
+.shop-actions { margin-top: auto; padding-top: 8px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
 /* --- admin: live presence ---------------------------------------------------------------- */
 .live-panel h2 { display: flex; align-items: center; gap: 8px; }
 .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgb(63 191 116 / .6); animation: pulse 2s infinite; }

@@ -19,7 +19,7 @@ from . import similarity
 from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -118,6 +118,23 @@ CREATE TABLE IF NOT EXISTS report_votes (
     rating_id INTEGER NOT NULL REFERENCES ratings(id) ON DELETE CASCADE,
     member_id INTEGER NOT NULL REFERENCES members(id),
     PRIMARY KEY (rating_id, member_id)
+) WITHOUT ROWID;
+
+-- v6: the Biscuit Shop. Earnings are computed (points.py); this is the ledger of *spends*.
+-- UNIQUE stops a double-click buying the same item twice.
+CREATE TABLE IF NOT EXISTS purchases (
+    id         INTEGER PRIMARY KEY,
+    member_id  INTEGER NOT NULL REFERENCES members(id),
+    item_key   TEXT    NOT NULL,
+    cost       INTEGER NOT NULL CHECK (cost >= 0),   -- price at time of purchase
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (member_id, item_key)
+);
+CREATE TABLE IF NOT EXISTS equipped (
+    member_id INTEGER NOT NULL REFERENCES members(id),
+    slot      TEXT    NOT NULL,                      -- title | color | frame
+    item_key  TEXT    NOT NULL,
+    PRIMARY KEY (member_id, slot)
 ) WITHOUT ROWID;
 """
 
@@ -606,6 +623,53 @@ def points_activity(member_id: int | None = None) -> list[sqlite3.Row]:
             ORDER BY m.name COLLATE NOCASE""",
         params,
     ).fetchall()
+
+
+# --- the shop ---------------------------------------------------------------------------
+
+def points_spent(member_id: int) -> int:
+    return get_db().execute("SELECT COALESCE(SUM(cost), 0) FROM purchases WHERE member_id = ?",
+                            (member_id,)).fetchone()[0]
+
+
+def owned_items(member_id: int) -> set[str]:
+    return {r[0] for r in get_db().execute("SELECT item_key FROM purchases WHERE member_id = ?", (member_id,))}
+
+
+def buy(member_id: int, item_key: str, cost: int, balance: int) -> str | None:
+    """Record a purchase. Returns an error message, or None on success.
+
+    `balance` is checked here *and* the insert is guarded by UNIQUE, so two fast taps can't buy
+    the same item twice. (Two different items bought in the same instant could in theory both
+    pass the balance check; for ~10 agents buying cosmetics that race isn't worth a lock.)
+    """
+    if cost > balance:
+        return f"You need {cost - balance} more points for that."
+    conn = get_db()
+    try:
+        with conn:
+            conn.execute("INSERT INTO purchases (member_id, item_key, cost) VALUES (?, ?, ?)",
+                         (member_id, item_key, cost))
+    except sqlite3.IntegrityError:
+        return "You already own that."
+    return None
+
+
+def equip(member_id: int, slot: str, item_key: str | None) -> None:
+    conn = get_db()
+    with conn:
+        conn.execute("DELETE FROM equipped WHERE member_id = ? AND slot = ?", (member_id, slot))
+        if item_key:
+            conn.execute("INSERT INTO equipped (member_id, slot, item_key) VALUES (?, ?, ?)",
+                         (member_id, slot, item_key))
+
+
+def equipped_items() -> dict[int, list[str]]:
+    """{member_id: [equipped item keys]} for everyone: small enough to load once per page."""
+    out: dict[int, list[str]] = {}
+    for r in get_db().execute("SELECT member_id, item_key FROM equipped"):
+        out.setdefault(r["member_id"], []).append(r["item_key"])
+    return out
 
 
 # --- drops ------------------------------------------------------------------------------

@@ -81,8 +81,10 @@ internal goes in it (see `.gitignore`).
 - **Migrations are idempotent:** columns are added via `ADDED_COLUMNS` and only if missing.
 - **D17: Biscuit Points are computed, not stored** (`app/points.py` RULES ×
   `db.points_activity()`), so there's no counter to drift and the rules can be retuned freely.
-  Spending (the shop) will add a ledger of *spends*: balance = earned − spent. **Open
-  question for CF:** what the cosmetics are.
+  Spending is a ledger (`purchases`, schema v6, UNIQUE per item): balance = earned − spent.
+  **Ranks use lifetime earned**, so shopping never demotes. Cosmetics are agent flair (CF's
+  pick): title, name colour, avatar frame (`app/shop.py` catalogue; item keys are permanent).
+  The `_agent.html` macro renders flair wherever an agent's name appears.
 - **Next build:** the roadmap's "later" items (`app/roadmap.json`).
 
 ## Architecture

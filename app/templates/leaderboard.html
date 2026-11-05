@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
 {% block title %}Awards night{% endblock %}
 
 {#- Blind rating, as relaxed by the case lifecycle (app/cases.py): every biscuit's NAME and PLACE
@@ -104,7 +105,7 @@
 <ul class="dossiers">
   {% for a in agents %}{% set fav = awards.favourites.get(a.id) %}
   <li class="agent-card">
-    <p class="agent-card-head"><span class="agent-card-avatar" aria-hidden="true">{{ a.avatar }}</span> <strong>{{ a.name }}</strong></p>
+    <p class="agent-card-head"><strong>{{ agent(a.id, a.name, a.avatar, prefix="") }}</strong></p>
     <p class="agent-card-stats mono">{{ a.n }} report{{ 's' if a.n != 1 }}{% if given.get(a.id) is not none %} · avg {{ "%.1f" | format(given[a.id]) }}{% endif %}{% if a.added %} · {{ a.added }} logged{% endif %}</p>
     {% if fav %}
     <p class="love">💘 <span class="love-label">Soulmate</span> {{ biscuit_ref(fav.soulmate) }} {{ agent_score(fav.soulmate, fav.soulmate_score) }}</p>

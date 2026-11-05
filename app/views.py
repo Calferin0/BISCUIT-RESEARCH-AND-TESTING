@@ -11,7 +11,7 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, url_for)
 
-from . import awards, cases, db, images, points, recommend, scoring, similarity, util
+from . import awards, cases, db, images, points, recommend, scoring, shop, similarity, util
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -49,6 +49,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.suggestions": "At the suggestion box",
         "views.dashboard": "Checking the dashboard",
         "views.points_page": "Counting their Biscuit Points",
+        "views.shop_page": "Browsing the Biscuit Shop",
         "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
     }.get(endpoint)
@@ -353,16 +354,63 @@ def edit_drop(drop_id: int | None = None):
     return redirect(url_for("views.dashboard") + "#drops")
 
 
+def _earned(member_id: int) -> int:
+    row = next(iter(db.points_activity(member_id)), None)
+    return points.total(row) if row else 0
+
+
 @bp.get("/points")
 @agent_required
 def points_page():
+    # Ranks use lifetime *earned* points, so shopping never demotes anyone.
     table = sorted(({**dict(a), "points": points.total(a)} for a in db.points_activity()),
                    key=lambda a: (-a["points"], a["name"].lower()))
     mine = next((a for a in db.points_activity(g.member["id"])), None)
-    my_points = points.total(mine) if mine else 0
+    earned = points.total(mine) if mine else 0
     return render_template("points.html", table=table, rules=points.RULES, rank=points.rank,
-                           breakdown=points.breakdown(mine) if mine else [], my_points=my_points,
-                           next_rank=points.next_rank(my_points))
+                           breakdown=points.breakdown(mine) if mine else [], earned=earned,
+                           spent=db.points_spent(g.member["id"]), next_rank=points.next_rank(earned))
+
+
+@bp.get("/shop")
+@agent_required
+def shop_page():
+    me_id = g.member["id"]
+    balance = _earned(me_id) - db.points_spent(me_id)
+    equipped = shop.flair_for(db.equipped_items().get(me_id, []))
+    return render_template("shop.html", slots=shop.SLOTS, catalogue=shop.CATALOGUE, balance=balance,
+                           owned=db.owned_items(me_id), equipped_keys=set(db.equipped_items().get(me_id, [])),
+                           preview=equipped)
+
+
+@bp.post("/shop/buy/<item_key>")
+@agent_required
+def shop_buy(item_key: str):
+    item = shop.BY_KEY.get(item_key)
+    if item is None:
+        abort(404)
+    me_id = g.member["id"]
+    error = db.buy(me_id, item.key, item.cost, _earned(me_id) - db.points_spent(me_id))
+    if error:
+        flash(error, "error")
+    else:
+        db.equip(me_id, item.slot, item.key)  # buying it means you want to wear it
+        flash(f"Purchased and equipped: {item.name}. Looking sharp, agent. 🛍️", "celebrate")
+    return redirect(url_for("views.shop_page") + f"#{item.slot}")
+
+
+@bp.post("/shop/equip/<slot>")
+@agent_required
+def shop_equip(slot: str):
+    if slot not in shop.SLOTS:
+        abort(404)
+    item_key = request.form.get("item_key", "")
+    if item_key:
+        item = shop.BY_KEY.get(item_key)
+        if item is None or item.slot != slot or item_key not in db.owned_items(g.member["id"]):
+            abort(400)
+    db.equip(g.member["id"], slot, item_key or None)
+    return redirect(url_for("views.shop_page") + f"#{slot}")
 
 
 SUGGESTION_MAX = 1000

@@ -1,11 +1,14 @@
 {% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
 {% block title %}Biscuit Points{% endblock %}
 {% block content %}
 <section class="hero">
   <p class="eyebrow">Department of Rewards</p>
   <h1>🪙 Biscuit Points</h1>
-  <p class="lede">You have <strong class="points-big">{{ my_points }}</strong> points. Rank: <strong>{{ rank(my_points) }}</strong>.
-    {% if next_rank %}{{ next_rank[1] }} more to <strong>{{ next_rank[0] }}</strong>.{% endif %}</p>
+  <p class="lede">Balance <strong class="points-big">{{ earned - spent }}</strong>
+    <span class="muted small mono">(earned {{ earned }} · spent {{ spent }})</span><br>
+    Rank: <strong>{{ rank(earned) }}</strong>.{% if next_rank %} {{ next_rank[1] }} more to <strong>{{ next_rank[0] }}</strong>.{% endif %}</p>
+  <p><a class="btn" href="{{ url_for('views.shop_page') }}">🛍️ Visit the Biscuit Shop</a></p>
 </section>
 
 <section class="panel">
@@ -19,26 +22,21 @@
         <td class="mono"><strong>{{ item.points }}</strong></td>
       </tr>
       {% endfor %}
-      <tr><td><strong>Total</strong></td><td></td><td class="mono"><strong>{{ my_points }}</strong></td></tr>
+      <tr><td><strong>Total earned</strong></td><td></td><td class="mono"><strong>{{ earned }}</strong></td></tr>
     </tbody>
   </table>
   <p class="muted small">Funny or useful field notes get 👍 from other agents, and every 👍 is worth {{ (rules | selectattr("key", "equalto", "thumbs") | first).points }} points to you.</p>
 </section>
 
-<h2 class="section-title">🏆 Points table</h2>
+<h2 class="section-title">🏆 Points table <span class="muted small">(lifetime earned)</span></h2>
 <ol class="ranking panel points-ranking">
   {% for a in table %}
   <li{% if a.id == me.id %} class="me"{% endif %}>
     <span class="mono muted">{{ loop.index }}.</span>
-    <span class="rank-name">{{ a.avatar }} {{ a.name }}</span>
+    <span class="rank-name">{{ agent(a.id, a.name, a.avatar, prefix="") }}</span>
     <span class="muted small">{{ rank(a.points) }}</span>
     <span class="score-num">{{ a.points }}</span>
   </li>
   {% endfor %}
 </ol>
-
-<section class="panel shop-teaser">
-  <h2>🛍️ The Biscuit Shop</h2>
-  <p class="muted">Coming soon: spend your points on cosmetic upgrades. Hang on to them.</p>
-</section>
 {% endblock %}

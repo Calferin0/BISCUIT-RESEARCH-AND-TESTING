@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
+{% block title %}Biscuit Shop{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('views.points_page') }}">← Biscuit Points</a>
+<section class="hero">
+  <p class="eyebrow">Purveyors of fine agent flair</p>
+  <h1>🛍️ The Biscuit Shop</h1>
+  <p class="lede">Balance: <strong class="points-big">🪙 {{ balance }}</strong>. Spending never lowers your rank. Ranks count everything you've ever earned.</p>
+  <p class="shop-preview">You appear as: {{ agent(me.id, me.name, me.avatar) }}</p>
+</section>
+
+{% for slot, label in slots.items() %}
+<h2 class="section-title" id="{{ slot }}">{{ label }}</h2>
+<ul class="shop-grid">
+  {% for item in catalogue if item.slot == slot %}
+  {% set is_owned = item.key in owned %}{% set is_on = item.key in equipped_keys %}
+  <li class="shop-item{{ ' owned' if is_owned }}{{ ' equipped' if is_on }}">
+    <div class="shop-sample">
+      {%- if slot == 'title' -%}<span class="agent-name-text">Agent {{ me.name }}</span><span class="agent-title">, {{ item.value }}</span>
+      {%- elif slot == 'color' -%}<span class="agent-name-text name-{{ item.value }}">Agent {{ me.name }}</span>
+      {%- else -%}<span class="avatar-frame frame-{{ item.value }}">{{ me.avatar }}</span>{%- endif -%}
+    </div>
+    <strong>{{ item.name }}</strong>
+    <p class="muted small">{{ item.blurb }}</p>
+    <div class="shop-actions">
+      {% if is_on %}
+      <form method="post" action="{{ url_for('views.shop_equip', slot=slot) }}">
+        <input type="hidden" name="item_key" value="">
+        <button class="btn btn-small btn-ghost" type="submit">✓ Equipped · take off</button>
+      </form>
+      {% elif is_owned %}
+      <form method="post" action="{{ url_for('views.shop_equip', slot=slot) }}">
+        <input type="hidden" name="item_key" value="{{ item.key }}">
+        <button class="btn btn-small" type="submit">Wear it</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('views.shop_buy', item_key=item.key) }}"
+            data-confirm="Buy {{ item.name }} for {{ item.cost }} points?">
+        <button class="btn btn-small{{ ' btn-ghost' if item.cost > balance }}" type="submit"{% if item.cost > balance %} disabled title="Need {{ item.cost - balance }} more"{% endif %}>🪙 {{ item.cost }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% endblock %}
