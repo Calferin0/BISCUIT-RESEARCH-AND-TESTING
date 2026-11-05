@@ -18,7 +18,7 @@ from flask.cli import with_appcontext
 from . import similarity
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -61,6 +61,23 @@ CREATE TABLE IF NOT EXISTS scores (
     category  TEXT    NOT NULL,
     value     INTEGER NOT NULL CHECK (value BETWEEN 1 AND 5),
     PRIMARY KEY (rating_id, category)
+) WITHOUT ROWID;
+
+-- v3: the suggestion box. Linked to the author; status is moved along by the weekly loop.
+CREATE TABLE IF NOT EXISTS suggestions (
+    id         INTEGER PRIMARY KEY,
+    member_id  INTEGER NOT NULL REFERENCES members(id),
+    kind       TEXT    NOT NULL DEFAULT 'idea',
+    body       TEXT    NOT NULL,
+    status     TEXT    NOT NULL DEFAULT 'new',   -- new | planned | building | shipped | declined
+    response   TEXT    NOT NULL DEFAULT '',      -- control room's reply, shown to everyone
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS suggestion_votes (
+    suggestion_id INTEGER NOT NULL REFERENCES suggestions(id) ON DELETE CASCADE,
+    member_id     INTEGER NOT NULL REFERENCES members(id),
+    PRIMARY KEY (suggestion_id, member_id)       -- one +1 per agent per suggestion
 ) WITHOUT ROWID;
 """
 
@@ -117,9 +134,11 @@ def init_db(path: Path) -> None:
             raise RuntimeError(f"{path} is schema v{version}; this code only knows v{SCHEMA_VERSION}.")
         # WAL lets phones read while someone else writes. It's a property of the file.
         conn.execute("PRAGMA journal_mode = WAL")
+        if 0 < version < SCHEMA_VERSION:
+            _backup(conn, path, version)  # every upgrade, even additive ones, keeps a pre-upgrade copy
         if version == 1:
-            _backup(conn, path, 1)
             conn.executescript(MIGRATE_1_TO_2)
+        # v2 -> v3 only adds tables, which SCHEMA's CREATE ... IF NOT EXISTS covers.
         conn.executescript(SCHEMA)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
@@ -131,6 +150,7 @@ def init_app(app: Flask) -> None:
     init_db(app.config["DATABASE"])
     app.teardown_appcontext(close_db)
     app.cli.add_command(demo_seed)
+    app.cli.add_command(export_suggestions)
 
 
 def _attach_scores(rows) -> list[dict]:
@@ -381,6 +401,83 @@ def export_ratings() -> list[dict]:
            JOIN biscuits b ON b.id = r.biscuit_id
            ORDER BY b.name COLLATE NOCASE, m.name COLLATE NOCASE"""
     ).fetchall())
+
+
+# --- suggestions ------------------------------------------------------------------------
+
+SUGGESTION_KINDS = {"idea": "💡 Feature idea", "bug": "🐛 Something's broken",
+                    "biscuit": "🍪 Biscuit request", "other": "📎 Other"}
+SUGGESTION_STATUSES = {"new": "📥 In the inbox", "planned": "🗓️ Planned", "building": "🚧 Working on it",
+                       "shipped": "✅ Shipped", "declined": "🙅 Not this time"}
+_STATUS_ORDER = "CASE s.status WHEN 'building' THEN 0 WHEN 'planned' THEN 1 WHEN 'new' THEN 2 WHEN 'shipped' THEN 3 ELSE 4 END"
+
+
+def add_suggestion(member_id: int, kind: str, body: str) -> int:
+    conn = get_db()
+    cur = conn.execute("INSERT INTO suggestions (member_id, kind, body) VALUES (?, ?, ?)", (member_id, kind, body))
+    conn.commit()
+    return cur.lastrowid
+
+
+def list_suggestions(viewer_id: int | None = None, statuses: tuple[str, ...] | None = None) -> list[sqlite3.Row]:
+    """Suggestions with author, +1 count and whether the viewer has voted. Busiest work first."""
+    where, params = "", [viewer_id]
+    if statuses:
+        where = f"WHERE s.status IN ({', '.join('?' for _ in statuses)})"
+        params += list(statuses)
+    return get_db().execute(
+        f"""SELECT s.*, m.name, m.avatar,
+                   (SELECT COUNT(*) FROM suggestion_votes v WHERE v.suggestion_id = s.id) AS votes,
+                   EXISTS (SELECT 1 FROM suggestion_votes v WHERE v.suggestion_id = s.id AND v.member_id = ?) AS voted
+            FROM suggestions s JOIN members m ON m.id = s.member_id
+            {where}
+            ORDER BY {_STATUS_ORDER}, votes DESC, s.created_at DESC""",
+        params,
+    ).fetchall()
+
+
+def toggle_vote(suggestion_id: int, member_id: int) -> None:
+    conn = get_db()
+    with conn:
+        removed = conn.execute("DELETE FROM suggestion_votes WHERE suggestion_id = ? AND member_id = ?",
+                               (suggestion_id, member_id)).rowcount
+        if not removed:
+            conn.execute("INSERT INTO suggestion_votes (suggestion_id, member_id) VALUES (?, ?)",
+                         (suggestion_id, member_id))
+
+
+def suggestion_exists(suggestion_id: int) -> bool:
+    return get_db().execute("SELECT 1 FROM suggestions WHERE id = ?", (suggestion_id,)).fetchone() is not None
+
+
+def set_suggestion_status(suggestion_id: int, status: str, response: str) -> None:
+    conn = get_db()
+    conn.execute("UPDATE suggestions SET status = ?, response = ?, updated_at = datetime('now') WHERE id = ?",
+                 (status, response, suggestion_id))
+    conn.commit()
+
+
+@click.command("export-suggestions")
+@click.option("--out", "out_dir", default="suggestions", show_default=True,
+              help="Folder to write into. Git-ignored: suggestions carry teammates' names and the repo is public.")
+@with_appcontext
+def export_suggestions(out_dir: str) -> None:
+    """Write open suggestions (inbox, planned, building) to a dated Markdown file for the weekly AI session."""
+    from datetime import date
+    rows = list_suggestions(None, ("new", "planned", "building"))
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{date.today():%Y-%m-%d}.md"
+    lines = [f"# BRT suggestions export {date.today():%Y-%m-%d}", "",
+             "Work through these on a branch. Update each one's status in the control room",
+             "(/admin/suggestions) and add shipped items to app/roadmap.json. Never commit this file.", ""]
+    for s in rows:
+        lines += [f"## #{s['id']} [{s['status']}] {SUGGESTION_KINDS.get(s['kind'], s['kind'])}  (+{s['votes']})",
+                  f"From: {s['name']} · {s['created_at'][:10]}", "", s["body"], ""]
+        if s["response"]:
+            lines += [f"> Control room: {s['response']}", ""]
+    path.write_text("\n".join(lines), encoding="utf-8")
+    click.echo(f"Wrote {len(rows)} open suggestion(s) to {path}")
 
 
 # --- CLI --------------------------------------------------------------------------------

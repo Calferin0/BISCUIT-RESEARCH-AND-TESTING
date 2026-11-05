@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Suggestion box{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Department of Bright Ideas</p>
+  <h1>Suggestion box</h1>
+  <p class="lede">Ideas, bugs, biscuits we should be eating. Your name goes on it, so make it a good one. The box is opened every week.</p>
+  {% include "_hq_tabs.html" %}
+</section>
+
+<section class="panel narrow">
+  <h2>Drop a note in the box</h2>
+  <form method="post" class="stack">
+    <label class="field">What kind of note?
+      <select name="kind">
+        {% for k, label in kinds.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="field">Your suggestion <small>max 1000 characters</small>
+      <textarea name="body" required minlength="5" maxlength="1000" rows="4"
+                placeholder="e.g. A 'biscuit of the week' banner on the front page."></textarea>
+    </label>
+    <button class="btn btn-wide" type="submit">📮 Post it</button>
+  </form>
+</section>
+
+<h2 class="section-title">In the box <span class="muted">({{ items | length }})</span></h2>
+{% if not items %}
+<div class="empty panel"><p class="lede">The box is empty. Be the first.</p></div>
+{% else %}
+<ul class="suggestion-list">
+  {% for s in items %}
+  <li class="suggestion status-{{ s.status }}" id="s{{ s.id }}">
+    <div class="suggestion-head">
+      <span class="tag tag-{{ s.status }}">{{ statuses.get(s.status, s.status) }}</span>
+      <span class="muted small">{{ kinds.get(s.kind, s.kind) }}</span>
+      <span class="muted small mono">#{{ s.id }} · {{ s.created_at[:10] }}</span>
+    </div>
+    <p class="suggestion-body">{{ s.body }}</p>
+    <div class="suggestion-foot">
+      <span class="muted small">{{ s.avatar }} Agent {{ s.name }}</span>
+      <form method="post" action="{{ url_for('views.vote', suggestion_id=s.id) }}">
+        <button class="btn btn-small {{ '' if s.voted else 'btn-ghost' }}" type="submit"
+                aria-pressed="{{ 'true' if s.voted else 'false' }}" title="{{ 'Take back your +1' if s.voted else '+1 this' }}">👍 {{ s.votes }}</button>
+      </form>
+    </div>
+    {% if s.response %}<blockquote class="reply"><strong>Control room:</strong> {{ s.response }}</blockquote>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

@@ -6,7 +6,10 @@
   <h1>Mission control</h1>
   <p class="lede">Agents reach BRT at <code class="big-url">{{ base }}</code> using their personal link below.
     If phones can't connect, check Windows Firewall and that you're on the office Wi-Fi.</p>
-  <p><a class="btn btn-small btn-ghost" href="{{ url_for('admin.export_csv') }}">⬇ Export all ratings (CSV)</a></p>
+  <p class="jump">
+    <a class="btn btn-small btn-ghost" href="{{ url_for('admin.export_csv') }}">⬇ Export all ratings (CSV)</a>
+    <a class="btn btn-small btn-ghost" href="{{ url_for('admin.suggestions') }}">📮 Suggestions{% if new_suggestions %} ({{ new_suggestions }} new){% endif %}</a>
+  </p>
 </section>
 
 <section class="panel live-panel" data-live-panel data-live-url="{{ url_for('admin.api_live') }}">

@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import functools
+import json
 from dataclasses import asdict
+from pathlib import Path
 
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, url_for)
@@ -41,6 +43,8 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.index": "Browsing specimens",
         "views.add_biscuit": "Logging a new specimen",
         "views.leaderboard": "At awards night",
+        "views.suggestions": "At the suggestion box",
+        "views.working_on_it": "Reading what's being built",
     }.get(endpoint)
 
 
@@ -244,6 +248,53 @@ def thumb():
         abort(404)
     mime = {"jpg": "image/jpeg"}.get(ext, f"image/{ext}")
     return current_app.response_class(data, mimetype=mime, headers={"Cache-Control": "public, max-age=86400"})
+
+
+SUGGESTION_MAX = 1000
+ROADMAP_FILE = Path(__file__).with_name("roadmap.json")
+ROADMAP_STATUSES = {"now": "🚧 Working on it now", "next": "⏭️ Up next", "later": "🗓️ On the list",
+                    "done": "✅ Done"}
+
+
+@bp.route("/suggestions", methods=["GET", "POST"])
+@agent_required
+def suggestions():
+    if request.method == "POST":
+        kind = request.form.get("kind", "idea")
+        body = request.form.get("body", "").strip()[:SUGGESTION_MAX]
+        if kind not in db.SUGGESTION_KINDS:
+            kind = "other"
+        if len(body) < 5:
+            flash("Give us a bit more than that. What's the idea?", "error")
+        else:
+            db.add_suggestion(g.member["id"], kind, body)
+            flash("Suggestion filed. The control room reviews the box every week. 📮", "celebrate")
+        return redirect(url_for("views.suggestions"))
+    return render_template("suggestions.html", items=db.list_suggestions(g.member["id"]),
+                           kinds=db.SUGGESTION_KINDS, statuses=db.SUGGESTION_STATUSES)
+
+
+@bp.post("/suggestions/<int:suggestion_id>/vote")
+@agent_required
+def vote(suggestion_id: int):
+    if not db.suggestion_exists(suggestion_id):
+        abort(404)
+    db.toggle_vote(suggestion_id, g.member["id"])
+    return redirect(url_for("views.suggestions") + f"#s{suggestion_id}")
+
+
+@bp.get("/working-on-it")
+@agent_required
+def working_on_it():
+    try:
+        roadmap = json.loads(ROADMAP_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        current_app.logger.exception("roadmap.json unreadable")
+        roadmap = {"updates": [], "roadmap": []}
+    return render_template("working_on_it.html", roadmap=roadmap, road_statuses=ROADMAP_STATUSES,
+                           statuses=db.SUGGESTION_STATUSES,
+                           in_flight=db.list_suggestions(g.member["id"], ("building", "planned")),
+                           shipped=db.list_suggestions(g.member["id"], ("shipped",))[:10])
 
 
 @bp.get("/leaderboard")

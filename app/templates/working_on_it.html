@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Working on it{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Site under construction · hard hats on</p>
+  <h1>🚧 Working on it</h1>
+  <p class="lede">What's being built, what's next, and what came out of your suggestions.</p>
+  {% include "_hq_tabs.html" %}
+</section>
+
+{% if roadmap.updates %}
+<h2 class="section-title">📰 Weekly updates</h2>
+{% for u in roadmap.updates %}
+<article class="panel update">
+  <p class="eyebrow">{{ u.date }}</p>
+  <h3>{{ u.title }}</h3>
+  <ul>{% for item in u["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
+</article>
+{% endfor %}
+{% endif %}
+
+<h2 class="section-title">🗺️ The roadmap</h2>
+{% for status, label in road_statuses.items() %}
+  {% set group = roadmap.roadmap | selectattr("status", "equalto", status) | list %}
+  {% if group %}
+  <h3 class="sub-title">{{ label }}</h3>
+  <ul class="road-list">
+    {% for r in group %}
+    <li class="road-card road-{{ status }}">
+      <span class="road-icon" aria-hidden="true">{{ r.icon }}</span>
+      <div><strong>{{ r.title }}</strong><p class="muted">{{ r.blurb }}</p></div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+{% endfor %}
+
+<h2 class="section-title">📮 From the suggestion box</h2>
+{% if in_flight %}
+<ul class="suggestion-list">
+  {% for s in in_flight %}
+  <li class="suggestion">
+    <div class="suggestion-head"><span class="tag tag-{{ s.status }}">{{ statuses[s.status] }}</span><span class="muted small mono">#{{ s.id }} · 👍 {{ s.votes }}</span></div>
+    <p class="suggestion-body">{{ s.body }}</p>
+    <span class="muted small">Suggested by {{ s.avatar }} {{ s.name }}</span>
+    {% if s.response %}<blockquote class="reply"><strong>Control room:</strong> {{ s.response }}</blockquote>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">Nothing from the box is in progress yet. <a href="{{ url_for('views.suggestions') }}">Add an idea</a> and get it +1'd.</p>
+{% endif %}
+
+{% if shipped %}
+<h3 class="sub-title">✅ Recently shipped from your ideas</h3>
+<ul class="shipped-list">
+  {% for s in shipped %}<li><span class="mono small">#{{ s.id }}</span> {{ s.body | truncate(120) }} <span class="muted small">({{ s.avatar }} {{ s.name }})</span></li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

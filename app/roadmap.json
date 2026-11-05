@@ -1,0 +1,68 @@
+{
+  "_comment": "Drives the WORKING ON IT page. Re-read on every request, so edits show without a restart. Public repo: no teammate names here; cite suggestions by #id. status: now | next | later | done",
+  "updates": [
+    {
+      "date": "2026-11-05",
+      "title": "Launch week",
+      "items": [
+        "Blind rating: results stay sealed until you've filed your own report",
+        "Dry Land Purists can skip the dunk ratings",
+        "Agent dossiers with your Soulmate and Nemesis biscuit",
+        "Live presence in the control room, so nobody gets cut off mid-review",
+        "E-STOP button. You know what it's for.",
+        "Suggestion box and this page"
+      ]
+    }
+  ],
+  "roadmap": [
+    {
+      "id": "weekly-loop",
+      "status": "now",
+      "icon": "🔁",
+      "title": "Weekly updates from your suggestions",
+      "blurb": "Every week the suggestion box gets reviewed, the best ideas get built, and they show up here."
+    },
+    {
+      "id": "dashboard",
+      "status": "next",
+      "icon": "📅",
+      "title": "Dashboard: limited-edition drops",
+      "blurb": "A timeline of UK limited-time biscuit releases, plus 'you might like' picks based on what the team rates highly."
+    },
+    {
+      "id": "public-after-a-week",
+      "status": "later",
+      "icon": "📂",
+      "title": "Cases go public after a week",
+      "blurb": "A week after a biscuit is logged, its results unseal for everyone. Before then the leaderboard shows the biscuit, just not its score."
+    },
+    {
+      "id": "limited-time",
+      "status": "later",
+      "icon": "⏳",
+      "title": "Limited-time cases",
+      "blurb": "When a biscuit leaves the shelves, its case closes and is filed as 'no longer available'."
+    },
+    {
+      "id": "reopen",
+      "status": "later",
+      "icon": "🔓",
+      "title": "Reopen requests",
+      "blurb": "Spotted a discontinued biscuit back in the shops? Request its case be reopened."
+    },
+    {
+      "id": "points",
+      "status": "later",
+      "icon": "🪙",
+      "title": "Biscuit Points",
+      "blurb": "Earn points by filing reports and writing reviews that get thumbs up. Spend them on cosmetic upgrades."
+    },
+    {
+      "id": "price-map",
+      "status": "later",
+      "icon": "🗺️",
+      "title": "Biscuit radius map",
+      "blurb": "Shops near the office with biscuit prices that the team can add to and correct."
+    }
+  ]
+}

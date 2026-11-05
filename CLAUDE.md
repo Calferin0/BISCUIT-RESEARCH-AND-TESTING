@@ -9,9 +9,9 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-05):** schema v2 (10 categories, photos, duplicate checks, awards night),
-blind rating, live presence, single-instance guard, Dry Land Purists, Soulmate/Nemesis.
-58 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
+**Status (2026-11-05):** schema v3 (10 categories, photos, duplicate checks, awards night,
+suggestion box), blind rating, live presence, single-instance guard, Dry Land Purists,
+Soulmate/Nemesis, WORKING ON IT page, weekly loop scripts. 67 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/CF-Motion-Impossible/BISCUIT-RESEARCH-AND-TESTING`, which is **public**, so
 nothing internal goes in it (see `.gitignore`).
 
@@ -52,6 +52,15 @@ nothing internal goes in it (see `.gitignore`).
   one tickbox, stored as *no score row*. That makes biscuit overalls the **mean of each rating's
   own average** (`db.RATING_OVERALLS`): one agent, one vote. A raw average over score rows would
   over-weight dunkers.
+- **D14: suggestions and the weekly loop** (schema v3, CF 2026-11-05). Suggestions carry the
+  author's name, so they stay in the DB and git-ignored exports, **never** in the public repo.
+  The weekly AI session works in a **git worktree** (`..\brt-weekly`), never in this folder,
+  because the live server runs from here. Live changes only arrive via `deploy-brt.bat`, which
+  checks presence, pulls, tests, then restarts. Runbook: `WEEKLY.md`. `app/roadmap.json` drives
+  the WORKING ON IT page, is re-read per request (no restart needed) and must cite suggestions
+  by `#id`, never by name.
+- **Next build (CF's pick):** Dashboard with UK limited-edition drops and "you might like".
+  Then the roadmap's "later" items.
 
 ## Architecture
 - `app/__init__.py`: `create_app()` resolves the data dir, loads the agent from the cookie into
@@ -89,6 +98,8 @@ py -3.14 -m venv .venv; .venv\Scripts\pip install -r requirements.txt   # one-ti
 $env:BRT_DATA_DIR="<scratch dir>"; .venv\Scripts\flask --app app demo-seed   # demo data (empty DB only)
 .\start-brt.bat    # background run via pythonw; log in %LOCALAPPDATA%\BRT\brt.log
 .\stop-brt.bat     # warns if agents are live, then kills every .venv pythonw (/force skips the check)
+.\export-suggestions.bat   # weekly: open suggestions -> suggestions\YYYY-MM-DD.md (git-ignored)
+.\deploy-brt.bat           # weekly: presence check, pull main, pip, pytest, restart (refuses on red tests)
 ```
 `.claude/launch.json` has a `brt-demo` preview config on **port 8090** with a scratchpad data
 dir. Never point it at the real data dir or port 8080: CF's real BRT runs on 8080, and on

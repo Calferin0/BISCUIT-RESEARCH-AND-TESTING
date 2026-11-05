@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Suggestions · Control room{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('admin.index') }}">← Control room</a>
+<section class="hero">
+  <p class="eyebrow">Control room · suggestion triage</p>
+  <h1>📮 Suggestion box</h1>
+  <p class="lede">Move each one along and reply. Status and reply show on the agents' Ideas pages.
+    Weekly export: <code>export-suggestions.bat</code> (see WEEKLY.md).</p>
+</section>
+
+{% if not items %}<div class="empty panel"><p class="lede">Nothing in the box yet.</p></div>{% endif %}
+<ul class="suggestion-list">
+  {% for s in items %}
+  <li class="suggestion status-{{ s.status }}" id="s{{ s.id }}">
+    <div class="suggestion-head">
+      <span class="mono small">#{{ s.id }}</span>
+      <span class="muted small">{{ kinds.get(s.kind, s.kind) }} · {{ s.avatar }} {{ s.name }} · {{ s.created_at[:10] }} · 👍 {{ s.votes }}</span>
+    </div>
+    <p class="suggestion-body">{{ s.body }}</p>
+    <form method="post" action="{{ url_for('admin.update_suggestion', suggestion_id=s.id) }}" class="inline-form">
+      <label class="field">Status
+        <select name="status">
+          {% for k, label in statuses.items() %}<option value="{{ k }}"{% if k == s.status %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="field grow">Reply <small>shown to everyone</small>
+        <input name="response" maxlength="500" value="{{ s.response }}" placeholder="e.g. Love it, building this week.">
+      </label>
+      <button class="btn btn-small" type="submit">Save</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

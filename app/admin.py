@@ -37,7 +37,24 @@ def index():
         "admin.html", base=base, members=members, avatars=scoring.AVATARS,
         biscuits=db.list_biscuits(None, include_inactive=True),
         live=current_app.extensions["brt_presence"].live(),
+        new_suggestions=len(db.list_suggestions(None, ("new",))),
     )
+
+
+@bp.get("/suggestions")
+def suggestions():
+    return render_template("admin_suggestions.html", items=db.list_suggestions(None),
+                           kinds=db.SUGGESTION_KINDS, statuses=db.SUGGESTION_STATUSES)
+
+
+@bp.post("/suggestions/<int:suggestion_id>")
+def update_suggestion(suggestion_id: int):
+    status = request.form.get("status", "")
+    if status not in db.SUGGESTION_STATUSES or not db.suggestion_exists(suggestion_id):
+        abort(400)
+    db.set_suggestion_status(suggestion_id, status, request.form.get("response", "").strip()[:500])
+    flash(f"Suggestion #{suggestion_id} updated.", "info")
+    return redirect(url_for("admin.suggestions") + f"#s{suggestion_id}")
 
 
 @bp.get("/api/live")

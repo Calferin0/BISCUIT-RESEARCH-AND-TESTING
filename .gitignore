@@ -19,6 +19,8 @@ brt.log
 brt.pid
 uploads/
 *.csv
+# Weekly suggestion exports: carry teammates' names; the repo is public (see WEEKLY.md)
+suggestions/
 
 # Images that stay on the BRT PC: the fake work screens (internal screenshots) and product
 # photos. The READMEs in those folders are tracked so the folders exist on a fresh clone.

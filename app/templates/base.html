@@ -31,7 +31,8 @@
   <nav class="nav" aria-label="Main">
     <a href="{{ url_for('views.index') }}"{% if request.endpoint == 'views.index' %} aria-current="page"{% endif %}>Specimens</a>
     <a href="{{ url_for('views.leaderboard') }}"{% if request.endpoint == 'views.leaderboard' %} aria-current="page"{% endif %}>Leaderboard</a>
-    <a class="btn btn-small" href="{{ url_for('views.add_biscuit') }}">+ Specimen</a>
+    <a href="{{ url_for('views.suggestions') }}"{% if request.endpoint in ('views.suggestions', 'views.working_on_it') %} aria-current="page"{% endif %}>Ideas</a>
+    <a class="btn btn-small" href="{{ url_for('views.add_biscuit') }}" aria-label="Log a new specimen">+ <span class="wide-only">Specimen</span><span class="narrow-only">Add</span></a>
   </nav>
   {% endif %}
 </header>

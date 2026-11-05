@@ -90,9 +90,16 @@ code { font-family: var(--mono); }
 .nav a:not(.btn) { color: var(--muted); text-decoration: none; padding: 7px 10px; border-radius: 9px; font-weight: 650; }
 .nav a:not(.btn):hover { color: var(--ink); }
 .nav a[aria-current] { color: var(--ink); background: var(--panel-2); }
+.nav .btn { white-space: nowrap; }
+.narrow-only { display: none; }
 @media (max-width: 640px) {
   .agent-name { display: none; }
   .nav { width: 100%; justify-content: space-between; }
+}
+@media (max-width: 420px) {
+  .wide-only { display: none; }
+  .narrow-only { display: inline; }
+  .nav a:not(.btn) { padding: 7px 6px; }
 }
 
 /* --- buttons + forms ------------------------------------------------------------------- */
@@ -367,6 +374,37 @@ blockquote { margin: 10px 0 0; padding: 0 0 0 12px; border-left: 3px solid var(-
 .live-list li { padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); }
 .live-list li.editing { border-color: var(--amber); }
 .live-list .tag { background: var(--amber); color: #2a1a00; }
+
+/* --- ideas: suggestion box + working on it --------------------------------------------- */
+.hq-tabs { margin-top: 12px; }
+.hq-tabs a[aria-current] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.suggestion-list { list-style: none; padding: 0; margin: 12px 0 24px; display: grid; gap: 12px; }
+.suggestion { padding: 14px 16px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); }
+.suggestion.status-building { border-left-color: var(--amber); }
+.suggestion.status-planned { border-left-color: #3ad6ff; }
+.suggestion.status-shipped { border-left-color: var(--green); }
+.suggestion.status-declined { opacity: .6; }
+.suggestion-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.suggestion-body { margin: 8px 0; white-space: pre-line; overflow-wrap: anywhere; }
+.suggestion-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.suggestion .inline-form { margin-top: 8px; }
+.reply { margin-top: 10px; font-style: normal; }
+.tag-new { background: var(--panel-2); color: var(--ink); }
+.tag-planned { background: #3ad6ff; color: #00222b; }
+.tag-building { background: var(--amber); color: #2a1a00; }
+.tag-shipped { background: var(--green); color: #052611; }
+.tag-declined { background: var(--line); color: var(--muted); }
+.update ul { margin: 8px 0 0; padding-left: 20px; }
+.update li { margin: 4px 0; }
+.road-list { list-style: none; padding: 0; margin: 8px 0 16px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.road-card { display: flex; gap: 12px; padding: 14px; border-radius: 14px; background: var(--panel); border: 1px dashed var(--line); }
+.road-card p { margin: 4px 0 0; font-size: .9rem; }
+.road-card.road-now { border: 2px solid var(--amber); background: repeating-linear-gradient(-45deg, rgb(240 180 41 / .07) 0 12px, transparent 12px 24px), var(--panel); }
+.road-card.road-next { border-style: solid; border-color: #3ad6ff; }
+.road-card.road-done { opacity: .7; }
+.road-icon { font-size: 1.8rem; line-height: 1; }
+.shipped-list { padding-left: 20px; }
+.shipped-list li { margin: 6px 0; }
 
 /* --- agent dossiers (leaderboard) ------------------------------------------------------ */
 .dossiers { list-style: none; padding: 0; margin: 12px 0 24px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }

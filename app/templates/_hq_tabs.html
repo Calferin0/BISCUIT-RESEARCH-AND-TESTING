@@ -1,0 +1,5 @@
+{#- Sub-navigation shared by the Suggestions and WORKING ON IT pages (one top-level "Ideas" tab). -#}
+<nav class="jump hq-tabs" aria-label="Ideas">
+  <a href="{{ url_for('views.suggestions') }}"{% if request.endpoint == 'views.suggestions' %} aria-current="page"{% endif %}>📮 Suggestion box</a>
+  <a href="{{ url_for('views.working_on_it') }}"{% if request.endpoint == 'views.working_on_it' %} aria-current="page"{% endif %}>🚧 Working on it</a>
+</nav>
