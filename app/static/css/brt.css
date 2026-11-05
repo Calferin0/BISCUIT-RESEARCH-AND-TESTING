@@ -96,6 +96,12 @@ code { font-family: var(--mono); }
   .agent-name { display: none; }
   .nav { width: 100%; justify-content: space-between; }
 }
+@media (max-width: 640px) {
+  /* Fallback if the tabs still don't fit: scroll sideways instead of wrapping or clipping. */
+  .nav { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { flex: none; }
+}
 @media (max-width: 420px) {
   .wide-only { display: none; }
   .narrow-only { display: inline; }
@@ -374,6 +380,47 @@ blockquote { margin: 10px 0 0; padding: 0 0 0 12px; border-left: 3px solid var(-
 .live-list li { padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); }
 .live-list li.editing { border-color: var(--amber); }
 .live-list .tag { background: var(--amber); color: #2a1a00; }
+
+/* --- dashboard: tastings, drops timeline, scouting ------------------------------------- */
+.pick-list { list-style: none; padding: 0; margin: 10px 0 8px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.pick-card {
+  display: flex; gap: 12px; align-items: center; height: 100%; padding: 10px; border-radius: 14px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink); text-decoration: none;
+  transition: transform .15s, border-color .15s;
+}
+.pick-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.pick-card p { margin: 2px 0 0; }
+.pick-photo { flex: none; width: 64px; height: 64px; border-radius: 10px; overflow: hidden; display: grid; place-items: center; background: #2a2418; font-size: 2rem; }
+.pick-photo img { width: 100%; height: 100%; object-fit: cover; }
+.pick-photo-white { background: #fff; }
+.pick-photo-white img { object-fit: contain; }
+.pick-cta { color: var(--accent); font-weight: 700; }
+.scouting [data-scouting-reroll] { margin-top: 4px; }
+
+.drop-list { list-style: none; padding: 0; margin: 8px 0 18px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.drop-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--accent); }
+.drop-card p { margin: 0; }
+.drop-card.kind-limited { border-top-color: var(--red); }
+.drop-card.kind-seasonal { border-top-color: var(--green); }
+.drop-card.kind-new { border-top-color: #3ad6ff; }
+.drop-card.kind-returning { border-top-color: #b38bff; }
+.drop-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tag-kind { background: var(--panel-2); color: var(--ink); }
+.drop-countdown { font-size: .75rem; color: var(--amber); font-weight: 700; }
+.drop-name { font-size: 1.05rem; }
+.drop-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* "Coming soon" as a vertical timeline: a rail with a dot per drop. */
+.drop-list.timeline { grid-template-columns: 1fr; gap: 14px; padding-left: 22px; border-left: 3px dashed var(--line); margin-left: 8px; }
+.drop-list.timeline .drop-card { position: relative; }
+.drop-list.timeline .drop-card::before {
+  content: ""; position: absolute; left: -33px; top: 18px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 4px var(--bg);
+}
+.gone summary { cursor: pointer; }
+.gone[open] summary { margin-bottom: 10px; }
+.gone .drop-card { opacity: .7; }
+.date-row { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 420px) { .date-row { grid-template-columns: 1fr; } }
 
 /* --- ideas: suggestion box + working on it --------------------------------------------- */
 .hq-tabs { margin-top: 12px; }

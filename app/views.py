@@ -3,13 +3,16 @@ from __future__ import annotations
 
 import functools
 import json
+import random
 from dataclasses import asdict
+from datetime import date
 from pathlib import Path
 
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, url_for)
 
-from . import awards, db, images, scoring, util
+from . import awards, db, images, recommend, scoring, similarity, util
+from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
 
@@ -44,6 +47,8 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.add_biscuit": "Logging a new specimen",
         "views.leaderboard": "At awards night",
         "views.suggestions": "At the suggestion box",
+        "views.dashboard": "Checking the dashboard",
+        "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
     }.get(endpoint)
 
@@ -179,7 +184,9 @@ def add_photo(biscuit_id: int):
 @agent_required
 def add_biscuit():
     if request.method == "GET":
-        return render_template("add_biscuit.html", form={}, matches=[])
+        # ?name=&brand= prefill, used by "Log it" links on the dashboard (drops and scouting picks).
+        prefill = {"name": request.args.get("name", "")[:NAME_MAX], "brand": request.args.get("brand", "")[:NAME_MAX]}
+        return render_template("add_biscuit.html", form=prefill, matches=[])
 
     form = {
         "name": request.form.get("name", "").strip()[:NAME_MAX],
@@ -248,6 +255,60 @@ def thumb():
         abort(404)
     mime = {"jpg": "image/jpeg"}.get(ext, f"image/{ext}")
     return current_app.response_class(data, mimetype=mime, headers={"Cache-Control": "public, max-age=86400"})
+
+
+@bp.get("/dashboard")
+@agent_required
+def dashboard():
+    today = date.today()
+    timeline = drops_mod.timeline(db.list_drops(), today)
+    # Link drops to case files by exact (normalised) name, so "on file" needs no extra column.
+    logged = db.list_biscuits(g.member["id"])
+    for bucket in timeline.values():
+        for d in bucket:
+            match = next((m for m in similarity.find_matches(d["name"], d["brand"], logged) if m.exact), None)
+            d["biscuit_id"] = match.id if match else None
+    picks = recommend.next_tastings(logged, db.member_ratings(g.member["id"]), random.Random())
+    return render_template("dashboard.html", timeline=timeline, picks=picks, kinds=drops_mod.KINDS,
+                           todo=sum(1 for b in logged if not b["mine"]), today=today)
+
+
+@bp.get("/api/scouting")
+@agent_required
+def api_scouting():
+    try:
+        brands = recommend.team_brands(db.leaderboard())
+        items = recommend.scouting(brands, db.list_biscuits(None), random.Random())
+    except images.PhotoError as e:
+        return {"items": [], "error": str(e)}, 502
+    for it in items:
+        it["thumb_url"] = url_for("views.thumb", u=it["thumb"])
+        it["log_url"] = url_for("views.add_biscuit", name=it["name"], brand=it["brand"])
+    return {"items": items}
+
+
+@bp.route("/drops/new", methods=["GET", "POST"])
+@bp.route("/drops/<int:drop_id>/edit", methods=["GET", "POST"])
+@agent_required
+def edit_drop(drop_id: int | None = None):
+    existing = db.get_drop(drop_id) if drop_id else None
+    if drop_id and (existing is None or not existing["active"]):
+        abort(404)
+    if request.method == "GET":
+        return render_template("drop_form.html", drop=existing or {}, kinds=drops_mod.KINDS)
+    try:
+        values = drops_mod.clean(request.form)
+    except drops_mod.DropError as e:
+        flash(str(e), "error")
+        return render_template("drop_form.html", drop={**(dict(existing) if existing else {}), **request.form},
+                               kinds=drops_mod.KINDS), 400
+    if existing:
+        db.update_drop(drop_id, values, g.member["id"])
+        flash("Drop updated. Thanks for keeping the intel fresh.", "info")
+    else:
+        db.add_drop(values, g.member["id"])
+        flash("Drop logged. The team has been alerted (they'll see it on the dashboard). 📅", "celebrate")
+    return redirect(url_for("views.dashboard") + "#drops")
 
 
 SUGGESTION_MAX = 1000

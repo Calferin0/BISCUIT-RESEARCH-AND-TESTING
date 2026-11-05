@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit drop" if drop.id else "Log a drop" }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('views.dashboard') }}#drops">← Dashboard</a>
+<section class="panel narrow">
+  <p class="eyebrow">Biscuit intelligence</p>
+  <h1>{{ "Correct the intel" if drop.id else "Log a biscuit drop" }}</h1>
+  <p class="muted">Spotted a limited edition, a seasonal special or a comeback? Leave dates blank if you don't know them.{% if drop.id %} Anyone can correct a drop.{% endif %}</p>
+  <form method="post" class="stack">
+    <label class="field">Biscuit
+      <input name="name" required maxlength="80" value="{{ drop.name or '' }}" placeholder="e.g. Gingerbread Digestive" autocomplete="off">
+    </label>
+    <label class="field">Brand <small>optional</small>
+      <input name="brand" maxlength="120" value="{{ drop.brand or '' }}" autocomplete="off">
+    </label>
+    <label class="field">What kind of drop?
+      <select name="kind">
+        {% for k, label in kinds.items() %}<option value="{{ k }}"{% if (drop.kind or 'limited') == k %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <div class="date-row">
+      <label class="field">In shops from <small>optional</small>
+        <input type="date" name="starts_on" value="{{ drop.starts_on or '' }}">
+      </label>
+      <label class="field">Gone after <small>optional</small>
+        <input type="date" name="ends_on" value="{{ drop.ends_on or '' }}">
+      </label>
+    </div>
+    <label class="field">Where <small>optional</small>
+      <input name="shops" maxlength="120" value="{{ drop.shops or '' }}" placeholder="e.g. Tesco, Sainsbury's" autocomplete="off">
+    </label>
+    <label class="field">Source link <small>optional · news article, shop page</small>
+      <input type="url" name="source_url" maxlength="500" value="{{ drop.source_url or '' }}" placeholder="https://…">
+    </label>
+    <label class="field">Notes <small>optional</small>
+      <textarea name="notes" maxlength="300" rows="2" placeholder="e.g. Only in big stores. Gone by Boxing Day.">{{ drop.notes or '' }}</textarea>
+    </label>
+    <button class="btn btn-wide" type="submit">{{ "Save changes" if drop.id else "Log the drop" }}</button>
+  </form>
+</section>
+{% endblock %}

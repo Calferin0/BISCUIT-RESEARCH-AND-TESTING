@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{%- macro drop_card(d) -%}
+<li class="drop-card kind-{{ d.kind }}">
+  <div class="drop-head">
+    <span class="tag tag-kind">{{ kinds.get(d.kind, d.kind) }}</span>
+    <span class="drop-countdown mono">{{ d.countdown }}</span>
+  </div>
+  <p><strong class="drop-name">{{ d.name }}</strong>{% if d.brand %} <span class="muted">· {{ d.brand }}</span>{% endif %}</p>
+  <p class="drop-dates muted small mono">
+    {%- if d.starts_on %}from {{ d.starts_on }}{% endif %}{% if d.starts_on and d.ends_on %} · {% endif %}{% if d.ends_on %}until {{ d.ends_on }}{% endif %}
+    {%- if not d.starts_on and not d.ends_on %}dates unknown{% endif -%}
+  </p>
+  {% if d.shops %}<p class="small">🛒 {{ d.shops }}</p>{% endif %}
+  {% if d.notes %}<p class="small muted">{{ d.notes }}</p>{% endif %}
+  <div class="drop-actions">
+    {% if d.biscuit_id %}<a class="btn btn-small" href="{{ url_for('views.biscuit', biscuit_id=d.biscuit_id) }}">📂 Case file</a>
+    {% else %}<a class="btn btn-small" href="{{ url_for('views.add_biscuit', name=d.name, brand=d.brand) }}">+ Log it</a>{% endif %}
+    {% if d.source_url %}<a class="btn btn-small btn-ghost" href="{{ d.source_url }}" target="_blank" rel="noopener noreferrer nofollow">Source ↗</a>{% endif %}
+    <a class="btn btn-small btn-ghost" href="{{ url_for('views.edit_drop', drop_id=d.id) }}" title="Correct this drop">✏️</a>
+  </div>
+</li>
+{%- endmacro %}
+
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Mission briefing · {{ today.strftime("%A %d %B") }}</p>
+  <h1>Dashboard</h1>
+  {% if todo %}
+  <p class="lede"><a href="{{ url_for('views.index') }}">{{ todo }} specimen{{ 's' if todo != 1 }}</a> still awaiting your report.</p>
+  {% else %}
+  <p class="lede">You're fully up to date. Time to go biscuit hunting.</p>
+  {% endif %}
+</section>
+
+{% if picks %}
+<h2 class="section-title">🎯 Your next tasting</h2>
+<ul class="pick-list">
+  {% for b in picks %}
+  <li>
+    <a class="pick-card" href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">
+      <div class="pick-photo">{% if b.image %}<img src="{{ url_for('views.upload', filename=b.image) }}" alt="" loading="lazy">{% else %}<span aria-hidden="true">🍪</span>{% endif %}</div>
+      <div><strong>{{ b.name }}</strong><p class="muted small">{{ b.reason }}</p></div>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<h2 class="section-title" id="drops">📅 Biscuit drops</h2>
+<p class="muted">Limited editions, seasonal specials, new releases and comebacks in UK shops, as spotted by the team.
+  <a class="btn btn-small" href="{{ url_for('views.edit_drop') }}">+ Log a drop</a></p>
+
+{% set groups = [
+  ("last_chance", "🔥 Last chance", "Gone within two weeks. Get tasting."),
+  ("now", "🛒 On shelves now", ""),
+  ("soon", "🔜 Coming soon", ""),
+  ("tbc", "❔ Rumoured · date TBC", ""),
+] %}
+{% set ns = namespace(any=false) %}
+{% for key, label, hint in groups %}
+  {% if timeline[key] %}{% set ns.any = true %}
+  <h3 class="sub-title">{{ label }}</h3>
+  {% if hint %}<p class="muted small">{{ hint }}</p>{% endif %}
+  <ul class="drop-list{{ ' timeline' if key == 'soon' }}">{% for d in timeline[key] %}{{ drop_card(d) }}{% endfor %}</ul>
+  {% endif %}
+{% endfor %}
+{% if not ns.any %}
+<div class="empty panel">
+  <p class="lede">No drops on the radar. Seen a limited-edition biscuit in the shops? Log it so the team can hunt it down.</p>
+</div>
+{% endif %}
+{% if timeline.gone %}
+<details class="panel gone">
+  <summary><strong>🪦 Gone but not forgotten ({{ timeline.gone | length }})</strong></summary>
+  <ul class="drop-list">{% for d in timeline.gone %}{{ drop_card(d) }}{% endfor %}</ul>
+</details>
+{% endif %}
+
+<h2 class="section-title">🔭 Scouting report</h2>
+<p class="muted">UK biscuits nobody has logged yet, picked from the brands the team likes. Pack shots via Open Food Facts.</p>
+<div class="scouting" data-scouting data-url="{{ url_for('views.api_scouting') }}">
+  <p class="muted small" data-scouting-status>Scanning the shelves…</p>
+  <ul class="pick-list" data-scouting-list></ul>
+  <button type="button" class="btn btn-small btn-ghost" data-scouting-reroll>🎲 Reroll</button>
+</div>
+{% endblock %}

@@ -10,7 +10,8 @@
         "Agent dossiers with your Soulmate and Nemesis biscuit",
         "Live presence in the control room, so nobody gets cut off mid-review",
         "E-STOP button. You know what it's for.",
-        "Suggestion box and this page"
+        "Suggestion box and this page",
+        "Dashboard: biscuit drops timeline, your next tasting, and a scouting report of UK biscuits nobody's tried yet"
       ]
     }
   ],
@@ -24,10 +25,10 @@
     },
     {
       "id": "dashboard",
-      "status": "next",
+      "status": "done",
       "icon": "📅",
       "title": "Dashboard: limited-edition drops",
-      "blurb": "A timeline of UK limited-time biscuit releases, plus 'you might like' picks based on what the team rates highly."
+      "blurb": "A timeline of UK limited-time biscuit releases (logged by you lot, so keep it topped up), plus 'you might like' picks."
     },
     {
       "id": "public-after-a-week",

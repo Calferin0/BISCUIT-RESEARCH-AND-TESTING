@@ -203,6 +203,44 @@ if (estop) {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && on) setStealth(false); });
 }
 
+// Dashboard scouting report: loaded after the page so a slow Open Food Facts never blocks it.
+const scouting = document.querySelector("[data-scouting]");
+if (scouting) {
+  const status = scouting.querySelector("[data-scouting-status]");
+  const list = scouting.querySelector("[data-scouting-list]");
+  const reroll = scouting.querySelector("[data-scouting-reroll]");
+  const load = async () => {
+    status.textContent = "Scanning the shelves…";
+    reroll.disabled = true;
+    try {
+      const resp = await fetch(scouting.dataset.url);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Scouting failed.");
+      if (!data.items.length) { status.textContent = "Nothing new found. The team has tried everything (or the search came up dry)."; list.replaceChildren(); return; }
+      status.textContent = "";
+      list.replaceChildren(...data.items.map((it) => {
+        const li = document.createElement("li");
+        const card = Object.assign(document.createElement("a"), { className: "pick-card", href: it.log_url, title: "Log it as a specimen" });
+        const photo = Object.assign(document.createElement("div"), { className: "pick-photo pick-photo-white" });
+        photo.append(Object.assign(document.createElement("img"), { src: it.thumb_url, alt: "", loading: "lazy" }));
+        const body = document.createElement("div");
+        body.append(Object.assign(document.createElement("strong"), { textContent: it.name }));
+        body.append(Object.assign(document.createElement("p"), { className: "muted small", textContent: [it.brand, it.reason].filter(Boolean).join(" · ") }));
+        body.append(Object.assign(document.createElement("span"), { className: "pick-cta small", textContent: "+ Log it" }));
+        card.append(photo, body);
+        li.append(card);
+        return li;
+      }));
+    } catch (err) {
+      status.textContent = `${err.message || "Scouting failed."} Try a reroll in a minute.`;
+    } finally {
+      reroll.disabled = false;
+    }
+  };
+  reroll.addEventListener("click", load);
+  load();
+}
+
 // Admin: copy join links, and confirm destructive-ish actions.
 document.addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-copy]");

@@ -86,7 +86,7 @@ def test_v2_database_upgrades_to_v3_with_backup(tmp_path):
     assert (tmp_path / "brt.v2-backup.sqlite3").exists()
     conn = sqlite3.connect(db_path)
     try:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == brtdb.SCHEMA_VERSION
         assert conn.execute("SELECT name FROM members").fetchone()[0] == "Old"
         conn.execute("SELECT COUNT(*) FROM suggestions").fetchone()
     finally:

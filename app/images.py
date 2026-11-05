@@ -76,6 +76,14 @@ def _http_get(url: str) -> bytes:
     return data
 
 
+def get_json(url: str):
+    """GET + JSON decode with the same UA, timeout and size limits as image fetches."""
+    try:
+        return json.loads(_http_get(url))
+    except ValueError as e:
+        raise PhotoError("That site sent back something unexpected.") from e
+
+
 def fetch_image(url: str) -> bytes:
     if urlsplit(url).scheme not in ("http", "https"):
         raise PhotoError("Image links must start with http:// or https://")

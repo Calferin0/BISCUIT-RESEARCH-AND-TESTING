@@ -74,6 +74,31 @@
   </ul>
 </section>
 
+<section class="panel" id="drops">
+  <h2>Biscuit drops <span class="muted">({{ drops | length }})</span></h2>
+  {% if not drops %}<p class="muted">None yet. Agents log them from the Dashboard.</p>{% else %}
+  <div class="table-scroll">
+    <table class="table">
+      <thead><tr><th>Drop</th><th>Dates</th><th>Last edited by</th><th></th></tr></thead>
+      <tbody>
+        {% for d in drops %}
+        <tr{% if not d.active %} class="retired"{% endif %}>
+          <td>{{ d.name }}{% if d.brand %} <span class="muted">· {{ d.brand }}</span>{% endif %}</td>
+          <td class="mono small">{{ d.starts_on or "?" }} → {{ d.ends_on or "?" }}</td>
+          <td class="muted">{{ d.updated_by_name or d.added_by_name or "–" }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.toggle_drop', drop_id=d.id) }}">
+              <button class="btn btn-small btn-ghost" type="submit">{{ 'Hide' if d.active else 'Restore' }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+
 <section class="panel" id="biscuits">
   <h2>Specimens <span class="muted">({{ biscuits | length }})</span></h2>
   {% if not biscuits %}<p class="muted">None yet. Agents add them from their phones with “+ Specimen”.</p>{% else %}

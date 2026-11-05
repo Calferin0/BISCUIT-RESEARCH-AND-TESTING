@@ -18,7 +18,7 @@ from flask.cli import with_appcontext
 from . import similarity
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -79,6 +79,25 @@ CREATE TABLE IF NOT EXISTS suggestion_votes (
     member_id     INTEGER NOT NULL REFERENCES members(id),
     PRIMARY KEY (suggestion_id, member_id)       -- one +1 per agent per suggestion
 ) WITHOUT ROWID;
+
+-- v4: biscuit drops (limited editions / seasonal / new / returning), entered by the team.
+-- No public feed exists for UK biscuit releases, so this is a team-maintained, team-corrected list.
+CREATE TABLE IF NOT EXISTS drops (
+    id         INTEGER PRIMARY KEY,
+    name       TEXT    NOT NULL,
+    brand      TEXT    NOT NULL DEFAULT '',
+    kind       TEXT    NOT NULL DEFAULT 'limited',  -- limited | seasonal | new | returning
+    starts_on  TEXT,                                -- ISO date; NULL = date TBC
+    ends_on    TEXT,                                -- ISO date; NULL = open-ended / unknown
+    shops      TEXT    NOT NULL DEFAULT '',
+    source_url TEXT    NOT NULL DEFAULT '',
+    notes      TEXT    NOT NULL DEFAULT '',
+    added_by   INTEGER REFERENCES members(id),
+    updated_by INTEGER REFERENCES members(id),
+    active     INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 # v1 had one column per category (dunk, crunch, ...). Those categories don't map onto the v2
@@ -138,7 +157,7 @@ def init_db(path: Path) -> None:
             _backup(conn, path, version)  # every upgrade, even additive ones, keeps a pre-upgrade copy
         if version == 1:
             conn.executescript(MIGRATE_1_TO_2)
-        # v2 -> v3 only adds tables, which SCHEMA's CREATE ... IF NOT EXISTS covers.
+        # v2 -> v3 -> v4 only add tables, which SCHEMA's CREATE ... IF NOT EXISTS covers.
         conn.executescript(SCHEMA)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
@@ -455,6 +474,62 @@ def set_suggestion_status(suggestion_id: int, status: str, response: str) -> Non
     conn.execute("UPDATE suggestions SET status = ?, response = ?, updated_at = datetime('now') WHERE id = ?",
                  (status, response, suggestion_id))
     conn.commit()
+
+
+# --- drops ------------------------------------------------------------------------------
+
+DROP_FIELDS = ("name", "brand", "kind", "starts_on", "ends_on", "shops", "source_url", "notes")
+
+
+def list_drops(include_hidden: bool = False) -> list[sqlite3.Row]:
+    return get_db().execute(
+        """SELECT d.*, a.name AS added_by_name, u.name AS updated_by_name
+           FROM drops d
+           LEFT JOIN members a ON a.id = d.added_by
+           LEFT JOIN members u ON u.id = d.updated_by
+           WHERE d.active = 1 OR ?
+           ORDER BY COALESCE(d.starts_on, '9999'), d.name COLLATE NOCASE""",
+        (int(include_hidden),),
+    ).fetchall()
+
+
+def get_drop(drop_id: int) -> sqlite3.Row | None:
+    return get_db().execute("SELECT * FROM drops WHERE id = ?", (drop_id,)).fetchone()
+
+
+def add_drop(values: dict, member_id: int | None) -> int:
+    conn = get_db()
+    cur = conn.execute(
+        f"INSERT INTO drops ({', '.join(DROP_FIELDS)}, added_by, updated_by) "
+        f"VALUES ({', '.join('?' for _ in DROP_FIELDS)}, ?, ?)",
+        (*(values[f] for f in DROP_FIELDS), member_id, member_id),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def update_drop(drop_id: int, values: dict, member_id: int | None) -> None:
+    conn = get_db()
+    conn.execute(
+        f"UPDATE drops SET {', '.join(f'{f} = ?' for f in DROP_FIELDS)}, updated_by = ?, "
+        f"updated_at = datetime('now') WHERE id = ?",
+        (*(values[f] for f in DROP_FIELDS), member_id, drop_id),
+    )
+    conn.commit()
+
+
+def toggle_drop(drop_id: int) -> None:
+    conn = get_db()
+    conn.execute("UPDATE drops SET active = 1 - active WHERE id = ?", (drop_id,))
+    conn.commit()
+
+
+def member_ratings(member_id: int) -> dict[int, float]:
+    """{biscuit_id: this agent's own overall} for their ratings. Their own data, so no blind-rating issue."""
+    rows = get_db().execute(
+        f"SELECT biscuit_id, overall FROM {RATING_OVERALLS} ro WHERE ro.member_id = ?", (member_id,)
+    ).fetchall()
+    return {r["biscuit_id"]: r["overall"] for r in rows}
 
 
 @click.command("export-suggestions")

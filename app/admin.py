@@ -38,7 +38,16 @@ def index():
         biscuits=db.list_biscuits(None, include_inactive=True),
         live=current_app.extensions["brt_presence"].live(),
         new_suggestions=len(db.list_suggestions(None, ("new",))),
+        drops=db.list_drops(include_hidden=True),
     )
+
+
+@bp.post("/drops/<int:drop_id>/toggle")
+def toggle_drop(drop_id: int):
+    if db.get_drop(drop_id) is None:
+        abort(404)
+    db.toggle_drop(drop_id)
+    return redirect(url_for("admin.index") + "#drops")
 
 
 @bp.get("/suggestions")

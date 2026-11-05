@@ -9,9 +9,9 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-05):** schema v3 (10 categories, photos, duplicate checks, awards night,
-suggestion box), blind rating, live presence, single-instance guard, Dry Land Purists,
-Soulmate/Nemesis, WORKING ON IT page, weekly loop scripts. 67 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
+**Status (2026-11-05):** schema v4 (10 categories, photos, duplicate checks, awards night,
+suggestion box, biscuit drops), blind rating, live presence, single-instance guard, Dry Land
+Purists, Soulmate/Nemesis, WORKING ON IT page, weekly loop scripts, Dashboard. 91 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
 internal goes in it (see `.gitignore`).
@@ -60,8 +60,14 @@ internal goes in it (see `.gitignore`).
   checks presence, pulls, tests, then restarts. Runbook: `WEEKLY.md`. `app/roadmap.json` drives
   the WORKING ON IT page, is re-read per request (no restart needed) and must cite suggestions
   by `#id`, never by name.
-- **Next build (CF's pick):** Dashboard with UK limited-edition drops and "you might like".
-  Then the roadmap's "later" items.
+- **D15: Dashboard** (schema v4, 2026-11-05). Drops are **team-entered**: there's no public feed
+  of UK biscuit releases, so never invent drops. Any agent can add or correct one; admin hides
+  them. The timeline is computed from dates only (`app/drops.py`, pure). "Your next tasting" is
+  weighted by the viewer's *own* ratings and by report counts, never others' scores (D10). The
+  scouting report uses Open Food Facts' structured query `brands_tags AND categories_tags:en:biscuits
+  AND countries_tags:en:united-kingdom` (plain text search drags in non-UK and non-biscuit
+  items), is cached 6 h per query, and loads via JS so a slow OFF never blocks the page.
+- **Next build:** the roadmap's "later" items (`app/roadmap.json`).
 
 ## Architecture
 - `app/__init__.py`: `create_app()` resolves the data dir, loads the agent from the cookie into
@@ -80,6 +86,8 @@ internal goes in it (see `.gitignore`).
   Facts search (new search API first, legacy endpoint as fallback). Agents can only make the
   server fetch from `images.openfoodfacts.org` (SSRF guard); admin can paste any URL.
 - `app/similarity.py`: biscuit-name normalising and fuzzy matching (pure).
+- `app/drops.py` (drop validation and timeline buckets) and `app/recommend.py` (tasting picks,
+  team brands, OFF scouting with cache): pure or near-pure, used by `/dashboard`.
 - `app/views.py` (agent pages, guarded by `@agent_required`, plus `/api/similar`,
   `/api/image-search` and the `/thumb` relay locked to the OFF host) and `app/admin.py` (loopback
   guard in `before_request`, photo replace page, CSV export with formula-injection escaping).
