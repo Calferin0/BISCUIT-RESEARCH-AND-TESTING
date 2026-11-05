@@ -51,6 +51,7 @@ def clean(form) -> dict:
     # Rendered as a link, so only http(s): a "javascript:" URL would run script when clicked.
     if url and urlsplit(url).scheme not in ("http", "https"):
         raise DropError("The source link must start with http:// or https://")
+    raw_link = str(form.get("biscuit_id") or "").strip()
     return {
         "name": name,
         "brand": (form.get("brand") or "").strip()[:TEXT_MAX],
@@ -60,7 +61,27 @@ def clean(form) -> dict:
         "shops": (form.get("shops") or "").strip()[:TEXT_MAX],
         "source_url": url,
         "notes": (form.get("notes") or "").strip()[:NOTES_MAX],
+        # Explicit "this drop IS that specimen" link. The view checks the id exists.
+        "biscuit_id": int(raw_link) if raw_link.isdigit() else None,
     }
+
+
+def auto_link(drop, logged) -> int | None:
+    """Best-guess specimen for a drop with no explicit link, so the same biscuit isn't shown twice.
+
+    Matches when every word of a specimen's name appears in the drop's name (after normalising),
+    and the specimen name has 2+ words: "Gingerbread Digestive" matches "Gingerbread Flavour Milk
+    Chocolate Digestives", but a bare "Digestive" won't swallow every digestive drop.
+    """
+    from .similarity import normalise
+    drop_words = set(normalise(drop["name"]).split())
+    best = None
+    for b in logged:
+        words = set(normalise(b["name"]).split())
+        if len(words) >= 2 and words <= drop_words:
+            if best is None or len(words) > best[0]:
+                best = (len(words), b["id"])
+    return best[1] if best else None
 
 
 def _days(iso: str | None, today: date) -> int | None:

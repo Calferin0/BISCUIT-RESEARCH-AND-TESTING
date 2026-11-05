@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, g, render_template, request
 
-from . import db, points, scoring, shop, util
+from . import db, points, rarity, scoring, shop, util
 from .presence import Presence
 
 
@@ -88,6 +88,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             "verdict": scoring.verdict,
             "product": util.random_product_image(),
             "work_shots": util.work_screenshots(),
+            "rarity_tiers": rarity.TIERS,
         }
 
     def denied(code: int, stamp: str, heading: str, message: str):

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Edit · {{ b.name }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('admin.index') }}#biscuits">← Control room</a>
+<section class="panel narrow">
+  <p class="eyebrow">Control room · specimen #{{ "%03d" | format(b.id) }}</p>
+  <h1>✏️ {{ b.name }}</h1>
+  <form method="post" class="stack">
+    <label class="field">Name <input name="name" required maxlength="60" value="{{ b.name }}"></label>
+    <label class="field">Brand <input name="brand" maxlength="60" value="{{ b.brand }}"></label>
+    <label class="field">Rarity
+      <select name="rarity_override">
+        <option value="">Team vote decides{% if team_tier %} (currently {{ team_tier.icon }} {{ team_tier.label }}){% endif %}</option>
+        {% for t in tiers %}<option value="{{ t.key }}"{% if b.rarity_override == t.key %} selected{% endif %}>📌 Pin to {{ t.icon }} {{ t.label }}</option>{% endfor %}
+      </select>
+    </label>
+    <p class="muted small">Votes: {% for t in tiers %}{{ t.icon }} {{ counts[t.key] }} {% endfor %}</p>
+    <button class="btn btn-wide" type="submit">Save specimen</button>
+  </form>
+  <p class="jump" style="margin-top:14px">
+    <a href="{{ url_for('admin.biscuit_photo', biscuit_id=b.id) }}">📸 Photo</a>
+    <a href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">📂 Case file</a>
+  </p>
+</section>
+
+<section class="panel" id="prices">
+  <h2>💷 Price reports <span class="muted">({{ prices | length }})</span></h2>
+  {% if not prices %}<p class="muted">No prices reported for this one yet.</p>{% endif %}
+  <ul class="suggestion-list">
+    {% for p in prices %}
+    <li class="suggestion{{ ' retired' if not p.active }}">
+      <div class="suggestion-head"><strong>{{ p.shop }}</strong><span class="muted small">{{ p.reporter or "?" }} · {{ p.created_at[:10] }}{% if not p.active %} · retracted{% endif %}</span></div>
+      <form method="post" action="{{ url_for('admin.edit_price', price_id=p.id) }}" class="inline-form">
+        <input type="hidden" name="biscuit_id" value="{{ b.id }}">
+        <label class="field">Price <input name="price" value="{{ fmt(p.pence) }}" size="7"></label>
+        <label class="field">Pack <input name="pack" value="{{ p.pack }}" size="7" maxlength="40"></label>
+        <button class="btn btn-small" type="submit">Save</button>
+      </form>
+      <form method="post" action="{{ url_for('admin.edit_price', price_id=p.id) }}">
+        <input type="hidden" name="biscuit_id" value="{{ b.id }}"><input type="hidden" name="action" value="toggle">
+        <button class="btn btn-small btn-ghost" type="submit">{{ 'Retract' if p.active else 'Restore' }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

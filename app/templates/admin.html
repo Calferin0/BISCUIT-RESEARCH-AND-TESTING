@@ -52,6 +52,13 @@
       {% if m.qr %}<img class="qr" src="{{ m.qr }}" alt="QR code for {{ m.name }}'s join link">{% else %}<div class="qr qr-off">Retired</div>{% endif %}
       <div class="agent-info">
         <p><strong>{{ m.avatar }} {{ m.name }}</strong> <span class="muted small">{{ m.n }} report{{ 's' if m.n != 1 }}</span></p>
+        <details class="edit-agent"><summary class="small">✏️ Edit</summary>
+          <form method="post" action="{{ url_for('admin.edit_member', member_id=m.id) }}" class="rename-form">
+            <input name="name" value="{{ m.name }}" maxlength="40" aria-label="Agent name">
+            <select name="avatar" aria-label="Avatar">{% for e in avatars %}<option{% if e == m.avatar %} selected{% endif %}>{{ e }}</option>{% endfor %}</select>
+            <button class="btn btn-small btn-ghost" type="submit">✓</button>
+          </form>
+        </details>
         {% if m.active %}
         <div class="copy-row">
           <input readonly value="{{ m.url }}" data-copy-src aria-label="{{ m.name }}'s join link">
@@ -118,7 +125,9 @@
         <tbody>
           {% for s in shops %}
           <tr{% if not s.active %} class="retired"{% endif %}>
-            <td>{{ s.name }}</td><td class="muted small">{{ s.kind }}{% if s.osm_ref %} · OSM{% endif %}</td>
+            <td><form method="post" action="{{ url_for('admin.rename_shop', shop_id=s.id) }}" class="rename-form">
+              <input name="name" value="{{ s.name }}" maxlength="80" aria-label="Shop name"><button class="btn btn-small btn-ghost" type="submit">✓</button></form></td>
+            <td class="muted small">{{ s.kind }}{% if s.osm_ref %} · OSM{% endif %}</td>
             <td><form method="post" action="{{ url_for('admin.toggle_shop', shop_id=s.id) }}"><button class="btn btn-small btn-ghost" type="submit">{{ 'Hide' if s.active else 'Restore' }}</button></form></td>
           </tr>
           {% endfor %}
@@ -168,7 +177,7 @@
               {% if b.image %}<img src="{{ url_for('views.upload', filename=b.image) }}" alt="">{% else %}<span>📷 Add</span>{% endif %}
             </a>
           </td>
-          <td>{{ b.name }}</td>
+          <td><a href="{{ url_for('admin.edit_biscuit', biscuit_id=b.id) }}" title="Edit name, brand, rarity, prices">✏️ {{ b.name }}</a></td>
           <td class="muted">{{ b.brand }}</td>
           <td>{{ b.n }}</td>
           <td>{{ "%.1f" | format(b.overall) if b.n else "–" }}</td>

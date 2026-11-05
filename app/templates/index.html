@@ -20,12 +20,15 @@
 <ul class="grid">
   {% for b in biscuits %}
   <li>
-    <a class="card" href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">
+    <a class="card{% if b.tier %} rarity-{{ b.tier.key }}{% endif %}" href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">
       {% set show_results = b.visible %}
-      <div class="card-photo">{% include "_photo.html" %}</div>
+      <div class="card-photo">{% include "_photo.html" %}
+        {% if b.tier %}<span class="rarity-badge rarity-{{ b.tier.key }}">{{ b.tier.icon }} {{ b.tier.label }}</span>{% endif %}
+      </div>
       <div class="card-body">
         <h2>{{ b.name }}</h2>
         {% if b.brand %}<p class="card-brand">{{ b.brand }}</p>{% endif %}
+        {% if b.drop %}<p class="shelf-badge">🛒 {{ kinds.get(b.drop.kind, b.drop.kind) }} · on shelves now</p>{% endif %}
         {% if b.n and not b.visible %}
         <p class="card-brand">🔒 {{ b.n }} report{{ 's' if b.n != 1 }} · sealed until you file</p>
         {% elif b.n %}

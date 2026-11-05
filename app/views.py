@@ -11,7 +11,7 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, url_for)
 
-from . import awards, cases, db, images, points, radar, recommend, scoring, shop, similarity, util
+from . import awards, cases, db, images, points, radar, rarity, recommend, scoring, shop, similarity, util
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -110,10 +110,31 @@ def leave():
 @agent_required
 def index():
     today = date.today()
-    biscuits = [{**dict(b), "visible": cases.can_see(b, b["mine"], today), "closed": cases.is_closed(b)}
-                for b in db.list_biscuits(g.member["id"])]
+    rows = db.list_biscuits(g.member["id"])
+    votes = db.rarity_votes()
+    # Specimens with a current (not gone) drop get an "on shelves" badge.
+    current = [d for d in db.list_drops() if not drops_mod.countdown(d, today).startswith("gone")]
+    by_drop = {d["id"]: d for d in current}
+    shelf = {bid: by_drop[did] for did, bid in drop_links(current, rows).items()}
+    biscuits = [{**dict(b), "visible": cases.can_see(b, b["mine"], today), "closed": cases.is_closed(b),
+                 "tier": rarity.decide(votes.get(b["id"], []), b["rarity_override"]),
+                 "drop": shelf.get(b["id"])}
+                for b in rows]
     todo = sum(1 for b in biscuits if not b["mine"] and not b["closed"])
-    return render_template("index.html", biscuits=biscuits, todo=todo)
+    return render_template("index.html", biscuits=biscuits, todo=todo, kinds=drops_mod.KINDS)
+
+
+@bp.post("/b/<int:biscuit_id>/rarity")
+@agent_required
+def vote_rarity(biscuit_id: int):
+    _active_biscuit_or_404(biscuit_id)
+    tier = request.form.get("tier", "")
+    if tier not in rarity.BY_KEY:
+        abort(400)
+    db.vote_rarity(biscuit_id, g.member["id"], tier)
+    t = rarity.BY_KEY[tier]
+    flash(f"You voted {t.icon} {t.label}. {t.blurb}", "info")
+    return redirect(url_for("views.biscuit", biscuit_id=biscuit_id) + "#rarity")
 
 
 @bp.get("/b/<int:biscuit_id>")
@@ -134,6 +155,10 @@ def biscuit(biscuit_id: int):
         cheapest=min((p for p in db.current_prices() if p["biscuit_id"] == biscuit_id),
                      key=lambda p: p["pence"], default=None),
         fmt_price=radar.fmt_price,
+        tiers=rarity.TIERS,
+        tier=rarity.decide(db.rarity_votes().get(biscuit_id, []), b["rarity_override"]),
+        tier_counts={t: db.rarity_votes().get(biscuit_id, []).count(t) for t in rarity.BY_KEY},
+        my_tier=db.my_rarity_vote(biscuit_id, g.member["id"]),
     )
 
 
@@ -266,6 +291,8 @@ def add_biscuit():
 
     biscuit_id = db.add_biscuit(form["name"], form["brand"], filename, g.member["id"],
                                 image_hash=digest, image_source=source)
+    if request.form.get("tier") in rarity.BY_KEY:  # the logger's pick is the first rarity vote
+        db.vote_rarity(biscuit_id, g.member["id"], request.form["tier"])
     flash("Specimen logged. Commence tasting.", "celebrate")
     return redirect(url_for("views.biscuit", biscuit_id=biscuit_id))
 
@@ -304,20 +331,39 @@ def thumb():
     return current_app.response_class(data, mimetype=mime, headers={"Cache-Control": "public, max-age=86400"})
 
 
+def drop_links(all_drops, logged) -> dict[int, int]:
+    """{drop_id: biscuit_id} for drops that ARE a logged specimen: explicit link first, then an
+    exact name match, then drops.auto_link's word-containment guess."""
+    active_ids = {b["id"] for b in logged}
+    links = {}
+    for d in all_drops:
+        if d["biscuit_id"] in active_ids:
+            links[d["id"]] = d["biscuit_id"]
+            continue
+        exact = next((m for m in similarity.find_matches(d["name"], d["brand"], logged) if m.exact), None)
+        guess = exact.id if exact else drops_mod.auto_link(d, logged)
+        if guess:
+            links[d["id"]] = guess
+    return links
+
+
 @bp.get("/dashboard")
 @agent_required
 def dashboard():
     today = date.today()
-    timeline = drops_mod.timeline(db.list_drops(), today)
-    # Link drops to case files by exact (normalised) name, so "on file" needs no extra column.
     logged = db.list_biscuits(g.member["id"])
-    for bucket in timeline.values():
-        for d in bucket:
-            match = next((m for m in similarity.find_matches(d["name"], d["brand"], logged) if m.exact), None)
-            d["biscuit_id"] = match.id if match else None
+    all_drops = db.list_drops()
+    links = drop_links(all_drops, logged)
+    by_id = {b["id"]: b for b in logged}
+    # No duplicates: a drop that's already a specimen leaves the drop timeline and shows as a
+    # compact "already on file" chip linking to its case file.
+    timeline = drops_mod.timeline([d for d in all_drops if d["id"] not in links], today)
+    on_file = [{**dict(d), "biscuit": by_id[links[d["id"]]], "countdown": drops_mod.countdown(d, today)}
+               for d in all_drops if d["id"] in links
+               and drops_mod.countdown(d, today).split()[0] != "gone"]
     picks = recommend.next_tastings(logged, db.member_ratings(g.member["id"]), random.Random())
     return render_template("dashboard.html", timeline=timeline, picks=picks, kinds=drops_mod.KINDS,
-                           todo=sum(1 for b in logged if not b["mine"]), today=today)
+                           on_file=on_file, todo=sum(1 for b in logged if not b["mine"]), today=today)
 
 
 @bp.get("/api/scouting")
@@ -341,14 +387,17 @@ def edit_drop(drop_id: int | None = None):
     existing = db.get_drop(drop_id) if drop_id else None
     if drop_id and (existing is None or not existing["active"]):
         abort(404)
+    specimens = [b for b in db.list_biscuits(None) if b["active"]]
     if request.method == "GET":
-        return render_template("drop_form.html", drop=existing or {}, kinds=drops_mod.KINDS)
+        return render_template("drop_form.html", drop=existing or {}, kinds=drops_mod.KINDS, specimens=specimens)
     try:
         values = drops_mod.clean(request.form)
+        if values["biscuit_id"] is not None and values["biscuit_id"] not in {b["id"] for b in specimens}:
+            raise drops_mod.DropError("Pick a specimen from the list.")
     except drops_mod.DropError as e:
         flash(str(e), "error")
         return render_template("drop_form.html", drop={**(dict(existing) if existing else {}), **request.form},
-                               kinds=drops_mod.KINDS), 400
+                               kinds=drops_mod.KINDS, specimens=specimens), 400
     if existing:
         db.update_drop(drop_id, values, g.member["id"])
         flash("Drop updated. Thanks for keeping the intel fresh.", "info")

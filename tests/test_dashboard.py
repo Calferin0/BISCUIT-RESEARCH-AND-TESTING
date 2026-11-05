@@ -114,10 +114,33 @@ def test_bad_drop_is_rerendered_not_saved(app, client, agent_token):
     assert resp.status_code == 400 and count(app, "SELECT COUNT(*) FROM drops") == 0
 
 
-def test_drop_links_to_case_file_once_logged(app, client, agent_token, biscuit_id):
+def test_logged_drop_is_a_chip_not_a_duplicate_card(app, client, agent_token, biscuit_id):
     client.post("/drops/new", data={"name": "Hobnobs", "brand": "McVitie's"})
+    client.get("/dashboard")  # consume the flash
     page = client.get("/dashboard").data.decode()
-    assert f"/b/{biscuit_id}" in page and "Case file" in page
+    assert "already in your case files" in page and f'href="/b/{biscuit_id}"' in page
+    assert 'class="drop-card' not in page                      # no separate drop card
+
+
+def test_auto_link_by_contained_words(app, client, agent_token):
+    with app.app_context():
+        bid = brtdb.add_biscuit("Gingerbread Digestive", "", None, None)
+        brtdb.add_biscuit("Digestive", "", None, None)              # one word: must not swallow drops
+    client.post("/drops/new", data={"name": "Gingerbread Flavour Milk Chocolate Digestives", "brand": "McVitie's"})
+    client.post("/drops/new", data={"name": "Digestives Jaffa Cakes flavour", "brand": "McVitie's"})
+    client.get("/dashboard")
+    page = client.get("/dashboard").data.decode()
+    assert f'href="/b/{bid}"' in page                              # gingerbread linked, shown as chip
+    assert "Digestives Jaffa Cakes flavour" in page                # jaffa stays a normal drop card
+
+
+def test_explicit_link_and_shelf_badge(app, client, agent_token, biscuit_id):
+    client.post("/drops/new", data={"name": "Totally Different Name", "biscuit_id": str(biscuit_id),
+                                    "starts_on": "2020-01-01"})
+    client.get("/")
+    assert "on shelves now" in client.get("/").data.decode()
+    resp = client.post("/drops/new", data={"name": "X", "biscuit_id": "999"})
+    assert resp.status_code == 400
 
 
 def test_dashboard_shows_tastings_without_scores(app, client, agent_token, biscuit_id):

@@ -32,6 +32,12 @@
     <label class="field">Source link <small>optional · news article, shop page</small>
       <input type="url" name="source_url" maxlength="500" value="{{ drop.source_url or '' }}" placeholder="https://…">
     </label>
+    <label class="field">Already a specimen? <small>links the drop to its case file, so it isn't listed twice</small>
+      <select name="biscuit_id">
+        <option value="">No / not logged yet (auto-match by name)</option>
+        {% for b in specimens %}<option value="{{ b.id }}"{% if drop.biscuit_id | string == b.id | string %} selected{% endif %}>{{ b.name }}{% if b.brand %} · {{ b.brand }}{% endif %}</option>{% endfor %}
+      </select>
+    </label>
     <label class="field">Notes <small>optional</small>
       <textarea name="notes" maxlength="300" rows="2" placeholder="e.g. Only in big stores. Gone by Boxing Day.">{{ drop.notes or '' }}</textarea>
     </label>

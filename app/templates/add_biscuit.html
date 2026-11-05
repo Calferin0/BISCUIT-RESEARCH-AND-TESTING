@@ -18,6 +18,18 @@
       <input name="brand" maxlength="60" autocomplete="off" placeholder="e.g. Supermarket own-brand" value="{{ form.brand }}">
     </label>
 
+    <fieldset class="tier-pick">
+      <legend>How rare is it? <small>optional · your vote; the team can vote too</small></legend>
+      <div class="tier-row">
+        {% for t in rarity_tiers %}
+        <label class="tier-option tier-{{ t.key }}" title="{{ t.blurb }}">
+          <input type="radio" name="tier" value="{{ t.key }}"{% if form.tier == t.key %} checked{% endif %}>
+          <span>{{ t.icon }} {{ t.label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
     <div class="dupes{% if matches | selectattr('exact') | list %} exact{% endif %}" data-dupes{% if not matches %} hidden{% endif %}>
       <p class="eyebrow">Already on file?</p>
       <ul data-dupes-list>

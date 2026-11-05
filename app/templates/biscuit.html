@@ -14,6 +14,8 @@
     <p class="eyebrow">Specimen #{{ "%03d" | format(b.id) }}{% if b.added_by_name %} · logged by Agent {{ b.added_by_name }}{% endif %}</p>
     <h1>{{ b.name }}</h1>
     {% if b.brand %}<p class="muted">{{ b.brand }}</p>{% endif %}
+    {% if tier %}<p><span class="rarity-badge rarity-{{ tier.key }} inline">{{ tier.icon }} {{ tier.label }}</span>
+      <span class="muted small">{{ tier.blurb }}</span></p>{% endif %}
     {% if closed %}<p><span class="tag tag-closed">🗄️ Case closed · no longer in shops</span></p>{% endif %}
     {% if cheapest %}<p class="small">💷 Cheapest spotted: <strong>{{ fmt_price(cheapest.pence) }}</strong> at
       <a href="{{ url_for('views.radar_page') }}#shop-{{ cheapest.shop_id }}">the radar's best shop</a>{% if cheapest.pack %} ({{ cheapest.pack }}){% endif %}</p>{% endif %}
@@ -41,6 +43,21 @@
     {% endif %}
   </div>
 </article>
+
+<section class="panel rarity-panel" id="rarity">
+  <h2>💎 How rare is it?</h2>
+  <p class="muted small">Team vote: the most-voted tier wins (ties go to the rarer one).{% if b.rarity_override %} The control room has pinned this one.{% endif %}</p>
+  <div class="tier-row">
+    {% for t in tiers %}
+    <form method="post" action="{{ url_for('views.vote_rarity', biscuit_id=b.id) }}">
+      <input type="hidden" name="tier" value="{{ t.key }}">
+      <button type="submit" class="tier-option tier-{{ t.key }}{{ ' chosen' if my_tier == t.key }}" title="{{ t.blurb }}">
+        <span>{{ t.icon }} {{ t.label }}</span><span class="tier-count">{{ tier_counts[t.key] }}</span>
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
 
 {% if not b.image %}
 <details class="panel photo-panel">

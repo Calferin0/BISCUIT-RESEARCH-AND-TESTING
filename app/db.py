@@ -19,7 +19,7 @@ from . import similarity
 from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS biscuits (
     active       INTEGER NOT NULL DEFAULT 1,
     created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
     case_status  TEXT    NOT NULL DEFAULT 'open',  -- v5: open | closed (no longer in shops)
-    closed_at    TEXT                              -- v5
+    closed_at    TEXT,                             -- v5
+    rarity_override TEXT                           -- v8: admin-set tier; NULL = team vote decides
 );
 CREATE INDEX IF NOT EXISTS idx_biscuits_image_hash ON biscuits(image_hash);
 
@@ -99,7 +100,8 @@ CREATE TABLE IF NOT EXISTS drops (
     updated_by INTEGER REFERENCES members(id),
     active     INTEGER NOT NULL DEFAULT 1,
     created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    biscuit_id INTEGER REFERENCES biscuits(id)      -- v8: the specimen this drop is (if logged)
 );
 
 -- v5: requests to reopen a closed case because the biscuit is back in shops.
@@ -128,6 +130,7 @@ CREATE TABLE IF NOT EXISTS purchases (
     item_key   TEXT    NOT NULL,
     cost       INTEGER NOT NULL CHECK (cost >= 0),   -- price at time of purchase
     created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    source     TEXT    NOT NULL DEFAULT 'shop',      -- v8: shop | loot (loot items cost 0 here)
     UNIQUE (member_id, item_key)
 );
 CREATE TABLE IF NOT EXISTS equipped (
@@ -160,21 +163,70 @@ CREATE TABLE IF NOT EXISTS prices (
     pence      INTEGER NOT NULL CHECK (pence BETWEEN 1 AND 10000),
     pack       TEXT    NOT NULL DEFAULT '',
     member_id  INTEGER REFERENCES members(id),
-    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    active     INTEGER NOT NULL DEFAULT 1            -- v8: admin can retract a wrong report
 );
 CREATE INDEX IF NOT EXISTS idx_prices_lookup ON prices(shop_id, biscuit_id, id);
+
+-- v8: rarity is a team vote (one vote per agent per biscuit); biscuits.rarity_override wins.
+CREATE TABLE IF NOT EXISTS rarity_votes (
+    biscuit_id INTEGER NOT NULL REFERENCES biscuits(id),
+    member_id  INTEGER NOT NULL REFERENCES members(id),
+    tier       TEXT    NOT NULL,
+    PRIMARY KEY (biscuit_id, member_id)
+) WITHOUT ROWID;
+
+-- v8: points movements that aren't "earned" (computed) or shop purchases: lootbox costs,
+-- loot refunds, duel stakes, winnings and refunds. Balance = earned - shop spend + SUM(delta).
+CREATE TABLE IF NOT EXISTS ledger (
+    id         INTEGER PRIMARY KEY,
+    member_id  INTEGER NOT NULL REFERENCES members(id),
+    delta      INTEGER NOT NULL,
+    reason     TEXT    NOT NULL,
+    ref        TEXT    NOT NULL DEFAULT '',
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ledger_member ON ledger(member_id);
+
+-- v8: Biscuit VS duels (Dunk / Snap / Crumble, first to 2 round wins).
+CREATE TABLE IF NOT EXISTS duels (
+    id            INTEGER PRIMARY KEY,
+    challenger_id INTEGER NOT NULL REFERENCES members(id),
+    opponent_id   INTEGER NOT NULL REFERENCES members(id),
+    wager         INTEGER NOT NULL DEFAULT 0 CHECK (wager >= 0),
+    biscuit_iou   INTEGER NOT NULL DEFAULT 0,       -- 1 = loser buys the winner a packet
+    status        TEXT    NOT NULL DEFAULT 'pending', -- pending | active | done | declined | cancelled
+    winner_id     INTEGER REFERENCES members(id),   -- NULL on a draw
+    iou_paid      INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+    accepted_at   TEXT,
+    finished_at   TEXT
+);
+CREATE TABLE IF NOT EXISTS duel_moves (
+    duel_id   INTEGER NOT NULL REFERENCES duels(id),
+    round     INTEGER NOT NULL,
+    member_id INTEGER NOT NULL REFERENCES members(id),
+    move      TEXT    NOT NULL,                     -- dunk | snap | crumble
+    PRIMARY KEY (duel_id, round, member_id)         -- one move per player per round
+) WITHOUT ROWID;
 """
 
 # v4 -> v5 adds columns to an existing table, which CREATE TABLE IF NOT EXISTS can't do.
 # Applied only where missing, so the migration is idempotent (safe to re-run on any file).
 ADDED_COLUMNS = {
-    "biscuits": (("case_status", "TEXT NOT NULL DEFAULT 'open'"), ("closed_at", "TEXT")),
+    "biscuits": (("case_status", "TEXT NOT NULL DEFAULT 'open'"), ("closed_at", "TEXT"),
+                 ("rarity_override", "TEXT")),                                   # v8
+    "prices": (("active", "INTEGER NOT NULL DEFAULT 1"),),                       # v8
+    "purchases": (("source", "TEXT NOT NULL DEFAULT 'shop'"),),                  # v8: shop | loot
+    "drops": (("biscuit_id", "INTEGER"),),                                       # v8: explicit specimen link
 }
 
 
 def _add_missing_columns(conn: sqlite3.Connection) -> None:
     for table, columns in ADDED_COLUMNS.items():
         have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if not have:
+            continue  # table doesn't exist yet: SCHEMA creates it with every column
         for name, decl in columns:
             if name not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
@@ -747,15 +799,86 @@ def current_prices() -> list[sqlite3.Row]:
            JOIN biscuits b ON b.id = p.biscuit_id AND b.active = 1
            JOIN shops s ON s.id = p.shop_id AND s.active = 1
            LEFT JOIN members m ON m.id = p.member_id
-           WHERE p.id = (SELECT MAX(p2.id) FROM prices p2
-                         WHERE p2.shop_id = p.shop_id AND p2.biscuit_id = p.biscuit_id)
+           WHERE p.active = 1
+             AND p.id = (SELECT MAX(p2.id) FROM prices p2
+                         WHERE p2.shop_id = p.shop_id AND p2.biscuit_id = p.biscuit_id AND p2.active = 1)
            ORDER BY b.name COLLATE NOCASE, p.pence"""
     ).fetchall()
 
 
+def prices_for_biscuit(biscuit_id: int) -> list[sqlite3.Row]:
+    """Every price report for one biscuit, newest first, including retracted ones (admin edit)."""
+    return get_db().execute(
+        """SELECT p.*, s.name AS shop, m.name AS reporter FROM prices p
+           JOIN shops s ON s.id = p.shop_id LEFT JOIN members m ON m.id = p.member_id
+           WHERE p.biscuit_id = ? ORDER BY p.id DESC""", (biscuit_id,)
+    ).fetchall()
+
+
+def update_price(price_id: int, pence: int, pack: str) -> None:
+    conn = get_db()
+    conn.execute("UPDATE prices SET pence = ?, pack = ? WHERE id = ?", (pence, pack, price_id))
+    conn.commit()
+
+
+def toggle_price(price_id: int) -> None:
+    conn = get_db()
+    conn.execute("UPDATE prices SET active = 1 - active WHERE id = ?", (price_id,))
+    conn.commit()
+
+
+def update_shop(shop_id: int, name: str) -> None:
+    conn = get_db()
+    conn.execute("UPDATE shops SET name = ? WHERE id = ?", (name, shop_id))
+    conn.commit()
+
+
+# --- admin edits ------------------------------------------------------------------------
+
+def update_biscuit(biscuit_id: int, name: str, brand: str, rarity_override: str | None) -> None:
+    conn = get_db()
+    conn.execute("UPDATE biscuits SET name = ?, brand = ?, rarity_override = ? WHERE id = ?",
+                 (name, brand, rarity_override, biscuit_id))
+    conn.commit()
+
+
+def update_member(member_id: int, name: str, avatar: str) -> None:
+    conn = get_db()
+    conn.execute("UPDATE members SET name = ?, avatar = ? WHERE id = ?", (name, avatar, member_id))
+    conn.commit()
+
+
+def get_member(member_id: int) -> sqlite3.Row | None:
+    return get_db().execute("SELECT * FROM members WHERE id = ?", (member_id,)).fetchone()
+
+
+# --- rarity votes -----------------------------------------------------------------------
+
+def vote_rarity(biscuit_id: int, member_id: int, tier: str) -> None:
+    conn = get_db()
+    with conn:
+        conn.execute("""INSERT INTO rarity_votes (biscuit_id, member_id, tier) VALUES (?, ?, ?)
+                        ON CONFLICT (biscuit_id, member_id) DO UPDATE SET tier = excluded.tier""",
+                     (biscuit_id, member_id, tier))
+
+
+def rarity_votes() -> dict[int, list[str]]:
+    """{biscuit_id: [tier, ...]}: all votes, small enough to load per page."""
+    out: dict[int, list[str]] = {}
+    for r in get_db().execute("SELECT biscuit_id, tier FROM rarity_votes"):
+        out.setdefault(r["biscuit_id"], []).append(r["tier"])
+    return out
+
+
+def my_rarity_vote(biscuit_id: int, member_id: int) -> str | None:
+    row = get_db().execute("SELECT tier FROM rarity_votes WHERE biscuit_id = ? AND member_id = ?",
+                           (biscuit_id, member_id)).fetchone()
+    return row["tier"] if row else None
+
+
 # --- drops ------------------------------------------------------------------------------
 
-DROP_FIELDS = ("name", "brand", "kind", "starts_on", "ends_on", "shops", "source_url", "notes")
+DROP_FIELDS = ("name", "brand", "kind", "starts_on", "ends_on", "shops", "source_url", "notes", "biscuit_id")
 
 
 def list_drops(include_hidden: bool = False) -> list[sqlite3.Row]:

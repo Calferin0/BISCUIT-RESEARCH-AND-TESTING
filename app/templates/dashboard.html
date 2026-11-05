@@ -71,7 +71,18 @@
   <ul class="drop-list{{ ' timeline' if key == 'soon' }}">{% for d in timeline[key] %}{{ drop_card(d) }}{% endfor %}</ul>
   {% endif %}
 {% endfor %}
-{% if not ns.any %}
+{% if on_file %}
+<h3 class="sub-title">📂 Also on shelves · already in your case files</h3>
+<ul class="chip-list">
+  {% for d in on_file %}
+  <li><a class="onfile-chip" href="{{ url_for('views.biscuit', biscuit_id=d.biscuit.id) }}">
+    {{ kinds.get(d.kind, d.kind).split(' ')[0] }} <strong>{{ d.biscuit.name }}</strong>
+    <span class="muted small">{{ d.countdown }}{% if not d.biscuit.mine %} · ● not reviewed yet{% endif %}</span></a>
+    <a class="muted small" href="{{ url_for('views.edit_drop', drop_id=d.id) }}" title="Wrong match? Fix the link">✏️</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% if not ns.any and not on_file %}
 <div class="empty panel">
   <p class="lede">No drops on the radar. Seen a limited-edition biscuit in the shops? Log it so the team can hunt it down.</p>
 </div>

@@ -9,7 +9,7 @@ from datetime import date
 from flask import (Blueprint, Response, abort, current_app, flash, redirect, render_template,
                    request, url_for)
 
-from . import db, images, radar, scoring, util
+from . import db, images, radar, rarity, scoring, util
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -43,6 +43,71 @@ def index():
         site=radar.load_site(current_app.config["DATA_DIR"]),
         shops=db.list_shops(include_hidden=True),
     )
+
+
+@bp.route("/biscuits/<int:biscuit_id>/edit", methods=["GET", "POST"])
+def edit_biscuit(biscuit_id: int):
+    """Full specimen edit: name, brand, pinned rarity, and every price report for it."""
+    b = db.get_biscuit(biscuit_id)
+    if b is None:
+        abort(404)
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()[:60]
+        brand = request.form.get("brand", "").strip()[:60]
+        tier = request.form.get("rarity_override") or None
+        if not name:
+            flash("A specimen needs a name.", "error")
+        elif tier is not None and tier not in rarity.BY_KEY:
+            abort(400)
+        elif any(m.exact and m.id != biscuit_id for m in db.similar_biscuits(name, brand)):
+            flash(f"Another specimen is already called “{name}”.", "error")
+        else:
+            db.update_biscuit(biscuit_id, name, brand, tier)
+            flash(f"Saved: {name}.", "celebrate")
+            return redirect(url_for("admin.edit_biscuit", biscuit_id=biscuit_id))
+    votes = db.rarity_votes().get(biscuit_id, [])
+    return render_template("admin_biscuit.html", b=b, tiers=rarity.TIERS, prices=db.prices_for_biscuit(biscuit_id),
+                           fmt=radar.fmt_price, team_tier=rarity.decide(votes),
+                           counts={t: votes.count(t) for t in rarity.BY_KEY})
+
+
+@bp.post("/prices/<int:price_id>")
+def edit_price(price_id: int):
+    biscuit_id = request.form.get("biscuit_id", type=int)
+    if request.form.get("action") == "toggle":
+        db.toggle_price(price_id)
+    else:
+        try:
+            db.update_price(price_id, radar.parse_price(request.form.get("price", "")),
+                            request.form.get("pack", "").strip()[:40])
+        except radar.RadarError as e:
+            flash(str(e), "error")
+    return redirect(url_for("admin.edit_biscuit", biscuit_id=biscuit_id) + "#prices")
+
+
+@bp.post("/shops/<int:shop_id>/rename")
+def rename_shop(shop_id: int):
+    name = request.form.get("name", "").strip()[:80]
+    if name and db.get_shop(shop_id):
+        db.update_shop(shop_id, name)
+    return redirect(url_for("admin.index") + "#radar")
+
+
+@bp.post("/members/<int:member_id>/edit")
+def edit_member(member_id: int):
+    m = db.get_member(member_id)
+    name = request.form.get("name", "").strip()[:MEMBER_NAME_MAX]
+    avatar = request.form.get("avatar", "")
+    if m is None:
+        abort(404)
+    if not name:
+        flash("An agent needs a name.", "error")
+    elif name.lower() != m["name"].lower() and db.member_name_taken(name):
+        flash(f"There's already an agent called {name}.", "error")
+    else:
+        db.update_member(member_id, name, avatar if avatar in scoring.AVATARS else m["avatar"])
+        flash(f"Agent {name} updated.", "info")
+    return redirect(url_for("admin.index"))
 
 
 @bp.post("/biscuits/<int:biscuit_id>/case")
