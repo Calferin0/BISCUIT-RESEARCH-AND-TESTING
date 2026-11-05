@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Control room{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Control room · this PC only</p>
+  <h1>Mission control</h1>
+  <p class="lede">Agents reach BRT at <code class="big-url">{{ base }}</code> using their personal link below.
+    If phones can't connect, check Windows Firewall and that you're on the office Wi-Fi.</p>
+  <p><a class="btn btn-small btn-ghost" href="{{ url_for('admin.export_csv') }}">⬇ Export all ratings (CSV)</a></p>
+</section>
+
+<section class="panel live-panel" data-live-panel data-live-url="{{ url_for('admin.api_live') }}">
+  <h2><span class="live-dot" aria-hidden="true"></span> Live now <span class="muted" data-live-count>({{ live | length }})</span></h2>
+  <p class="muted small" data-live-summary>
+    {%- if not live %}Nobody's on BRT right now. Safe to shut down.
+    {%- elif live | selectattr('editing') | list %}⚠️ Someone is mid-review. Hold off shutting down.
+    {%- else %}People are browsing, but nobody's halfway through a form.{% endif -%}
+  </p>
+  <ul class="live-list" data-live-list>
+    {% for a in live %}
+    <li{% if a.editing %} class="editing"{% endif %}>{{ a.avatar }} <strong>{{ a.name }}</strong> · {{ a.where }}{% if a.editing %} <span class="tag">✏️ mid-review</span>{% endif %} <span class="muted small">{{ a.seconds_ago }}s ago</span></li>
+    {% endfor %}
+  </ul>
+  <p class="muted small">Updates every 15 s. “Live” means seen in the last ~70 s.</p>
+</section>
+
+<section class="panel">
+  <h2>Recruit an agent</h2>
+  <form method="post" action="{{ url_for('admin.add_member') }}" class="inline-form">
+    <label class="field grow">Name
+      <input name="name" required maxlength="40" autocomplete="off" placeholder="First name is fine">
+    </label>
+    <label class="field">Avatar
+      <select name="avatar">
+        <option value="">🎲 Random</option>
+        {% for e in avatars %}<option>{{ e }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn" type="submit">Recruit</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Agents <span class="muted">({{ members | length }})</span></h2>
+  {% if not members %}<p class="muted">No agents yet. Recruit someone above. (Add yourself too, so you can rate.)</p>{% endif %}
+  <ul class="agent-list">
+    {% for m in members %}
+    <li class="agent-row{{ ' retired' if not m.active }}">
+      {% if m.qr %}<img class="qr" src="{{ m.qr }}" alt="QR code for {{ m.name }}'s join link">{% else %}<div class="qr qr-off">Retired</div>{% endif %}
+      <div class="agent-info">
+        <p><strong>{{ m.avatar }} {{ m.name }}</strong> <span class="muted small">{{ m.n }} report{{ 's' if m.n != 1 }}</span></p>
+        {% if m.active %}
+        <div class="copy-row">
+          <input readonly value="{{ m.url }}" data-copy-src aria-label="{{ m.name }}'s join link">
+          <button type="button" class="btn btn-small" data-copy>Copy</button>
+        </div>
+        {% endif %}
+        <div class="actions">
+          <form method="post" action="{{ url_for('admin.toggle_member', member_id=m.id) }}">
+            <button class="btn btn-small btn-ghost" type="submit">{{ 'Retire' if m.active else 'Reinstate' }}</button>
+          </form>
+          {% if m.active %}
+          <form method="post" action="{{ url_for('admin.rotate_token', member_id=m.id) }}" data-confirm="Issue a new link for {{ m.name }}? Their old link and phone sign-in stop working.">
+            <button class="btn btn-small btn-ghost" type="submit">New link</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="panel" id="biscuits">
+  <h2>Specimens <span class="muted">({{ biscuits | length }})</span></h2>
+  {% if not biscuits %}<p class="muted">None yet. Agents add them from their phones with “+ Specimen”.</p>{% else %}
+  <div class="table-scroll">
+    <table class="table">
+      <thead><tr><th>Photo</th><th>Name</th><th>Brand</th><th>Reports</th><th>Score</th><th></th></tr></thead>
+      <tbody>
+        {% for b in biscuits %}
+        <tr{% if not b.active %} class="retired"{% endif %}>
+          <td>
+            <a class="thumb" href="{{ url_for('admin.biscuit_photo', biscuit_id=b.id) }}" title="{{ 'Replace' if b.image else 'Add' }} photo">
+              {% if b.image %}<img src="{{ url_for('views.upload', filename=b.image) }}" alt="">{% else %}<span>📷 Add</span>{% endif %}
+            </a>
+          </td>
+          <td>{{ b.name }}</td>
+          <td class="muted">{{ b.brand }}</td>
+          <td>{{ b.n }}</td>
+          <td>{{ "%.1f" | format(b.overall) if b.n else "–" }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.toggle_biscuit', biscuit_id=b.id) }}">
+              <button class="btn btn-small btn-ghost" type="submit">{{ 'Hide' if b.active else 'Restore' }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

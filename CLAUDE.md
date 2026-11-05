@@ -1,0 +1,122 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# BRT (Biscuit Research & Testing) — Claude brief
+
+A lightweight, silly, Motion Impossible-themed web app for CF's team (~10 people) to log biscuit
+reviews. It runs in the background on CF's Windows PC; teammates on the office Wi-Fi open their
+personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
+"field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
+
+**Status (2026-11-05):** schema v2 (10 categories, photos, duplicate checks, awards night),
+blind rating, live presence, single-instance guard, Dry Land Purists, Soulmate/Nemesis.
+58 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
+Git: `github.com/CF-Motion-Impossible/BISCUIT-RESEARCH-AND-TESTING`, which is **public**, so
+nothing internal goes in it (see `.gitignore`).
+
+## Decisions (no `00_Planner/` yet, so they live here)
+- **D1: code lives in this OneDrive folder, under git** (git added 2026-11-05 at CF's request).
+  This deliberately breaks the workspace "code in bitbucket-local" rule, because it's a gag. Risk:
+  OneDrive syncing `.git/` can corrupt it, so if git starts misbehaving, move the repo out.
+- **D2: data lives outside OneDrive.** The DB, uploads, secret key, log and pid file go in
+  `%LOCALAPPDATA%\BRT\` (override with `BRT_DATA_DIR`). `create_app` refuses any path containing
+  "OneDrive".
+- **D3: stack.** CPython 3.14, Flask, stdlib `sqlite3` in WAL mode, Jinja templates,
+  hand-written CSS and a little vanilla JS. `waitress` serves it and `segno` makes the QR codes.
+  No framework, no build step, no CDN.
+- **D4: identity.** Each member has a personal link `/join/<token>` that sets a long-lived
+  httponly cookie (`brt_agent`). There are no passwords. A new token kills the old link.
+- **D5: admin auth.** `/admin/*` accepts only `remote_addr` in {127.0.0.1, ::1}, and
+  X-Forwarded-For is deliberately ignored. CF must open admin at `127.0.0.1`: the PC's own LAN IP
+  gets 403.
+- **D6: soft delete.** Members and biscuits toggle `active`. Ratings are never deleted from the UI.
+- **D7: scores in long format** (`scores(rating_id, category, value)`, CF 2026-11-05). Categories
+  live only in `scoring.CATEGORIES`, so changing them needs no migration. v1's column-per-category
+  ratings were parked in `ratings_v1`, not converted.
+- **D8: photos.** Sources: upload, an Open Food Facts pick, or a pasted URL (admin only). The
+  server always stores a local copy. Any agent can add a missing photo; only admin can replace one.
+- **D9: no duplicate biscuits.** An exact name match (normalised, compatible brand) is blocked.
+  A near-match needs a "mine is different" tick. An identical photo (same sha256) is rejected.
+- **D10: blind rating.** A biscuit's results (scores, verdict, others' reports, its leaderboard
+  place and awards) aren't *sent* to an agent until they've filed their own report. Enforced in
+  the views and templates, not CSS. After filing, they can still amend with results visible.
+- **D11: live presence in memory** (`app/presence.py`, per process). It's fed by page loads plus
+  a 25 s JS heartbeat that also flags unsaved form input. The admin "Live now" panel and
+  `/admin/live-count` (used by `stop-brt.bat`) read it. **Only correct with a single server
+  process** (see D12).
+- **D12: single instance.** `run.py` binds with `SO_EXCLUSIVEADDRUSE`. Waitress's default
+  SO_REUSEADDR lets several processes share a port on Windows (three copies ran on 2026-11-05
+  [MEASURED]). `stop-brt.bat` kills every `.venv\Scripts\pythonw.exe` with `/T`.
+- **D13: Dry Land Purists.** Categories marked `skippable` (the dunk pair) can be skipped with
+  one tickbox, stored as *no score row*. That makes biscuit overalls the **mean of each rating's
+  own average** (`db.RATING_OVERALLS`): one agent, one vote. A raw average over score rows would
+  over-weight dunkers.
+
+## Architecture
+- `app/__init__.py`: `create_app()` resolves the data dir, loads the agent from the cookie into
+  `g.member` on every request, and injects `me`/`CATEGORIES`/`verdict`/`product` into all
+  templates.
+- `app/db.py`: the schema plus **every** SQL query. One connection per request on `flask.g`.
+  `PRAGMA user_version` is the schema version; migrations go in `init_db`. It also has the
+  `demo-seed` CLI.
+- `app/scoring.py`: the 10 categories (each also defines its leaderboard champion award) and
+  verdicts. Keys are stored in `scores.category`: renaming one orphans old scores, so treat keys
+  as permanent and change labels freely.
+- `app/awards.py`: pure functions (no Flask/SQL) that turn `db.awards_data()` into the leaderboard
+  award cards. Ties are shared.
+- `app/images.py`: the one path every photo takes (`attach_photo`). It checks magic bytes, never
+  the extension, then sha256 dedupe, then saves under a random name. It also has the Open Food
+  Facts search (new search API first, legacy endpoint as fallback). Agents can only make the
+  server fetch from `images.openfoodfacts.org` (SSRF guard); admin can paste any URL.
+- `app/similarity.py`: biscuit-name normalising and fuzzy matching (pure).
+- `app/views.py` (agent pages, guarded by `@agent_required`, plus `/api/similar`,
+  `/api/image-search` and the `/thumb` relay locked to the OFF host) and `app/admin.py` (loopback
+  guard in `before_request`, photo replace page, CSV export with formula-injection escaping).
+- `app/util.py`: LAN IP detection, QR codes, product images, CSV safety.
+- `app/static/img/products/`: Motion Impossible product photos dropped in by CF. The footer
+  shows a random one, captioned from its file name.
+- E-STOP / WORK MODE button (`base.html` and `brt.js`, on every page): swaps the page for a fake
+  work screen, a random image from `app/static/img/work/` or a built-in fake IDE if it's empty.
+  Esc or another press exits; while active the button fades until hovered. Client-side only.
+
+## Commands
+```powershell
+py -3.14 -m venv .venv; .venv\Scripts\pip install -r requirements.txt   # one-time setup
+.venv\Scripts\pytest                                                     # all tests
+.venv\Scripts\pytest tests\test_ratings.py::test_one_rating_per_member   # single test
+.venv\Scripts\flask --app app run --debug --host 0.0.0.0 --port 8080     # dev, auto-reload
+$env:BRT_DATA_DIR="<scratch dir>"; .venv\Scripts\flask --app app demo-seed   # demo data (empty DB only)
+.\start-brt.bat    # background run via pythonw; log in %LOCALAPPDATA%\BRT\brt.log
+.\stop-brt.bat     # warns if agents are live, then kills every .venv pythonw (/force skips the check)
+```
+`.claude/launch.json` has a `brt-demo` preview config on **port 8090** with a scratchpad data
+dir. Never point it at the real data dir or port 8080: CF's real BRT runs on 8080, and on
+2026-11-05 a demo on 8080 briefly shared the port with it.
+
+## Things every session must know
+- **`python` on PATH is MSYS2 (`C:\msys64\ucrt64`).** It makes venvs with a `bin/` layout and
+  breaks the scripts. Always use `py -3.14` (the only standard CPython installed) or `.venv\Scripts\…`.
+- **LAN reachability is CF's job, not Claude's.** Windows Firewall needs an inbound rule for
+  python/port 8080 on a *Private* network profile. Never change firewall, network or system
+  settings. Corporate Wi-Fi may isolate clients from each other, so test from a phone first.
+- **Join URLs use the live LAN IP** (`util.public_base_url`), never `request.host`: admin is
+  viewed from 127.0.0.1, which is useless in a QR code. DHCP can move the IP and make printed QR
+  codes stale. On a VPN the detected IP may be wrong, so set `BRT_PUBLIC_HOST`.
+- The server dies when the PC sleeps. That's expected, not a bug.
+- Open Food Facts' legacy `cgi/search.pl` intermittently returns 503 "temporarily unavailable".
+  `search.openfoodfacts.org` is primary for that reason. The built-in browser pane blocks
+  third-party image hosts, which is one reason thumbnails go through `/thumb`.
+- Leaderboard tone: party-game awards show, but original. No Jackbox names, art or branding.
+  Tags tease the biscuits and stay kind to the people.
+- **Branding and images:** use only what CF puts in `static/img/products/`. Don't scrape the
+  company site and don't invent product names or specs.
+
+## Authorship split
+All code is Claude-written (CF's choice for this project), so the workspace hard-10% rule is
+waived. Still give the one-line "why" behind design choices.
+
+## Project-specific hard stops
+- Never expose the app beyond the LAN: no port forwarding, tunnels (ngrok etc.) or cloud hosting.
+- Never put the database or uploads inside this OneDrive folder (D2).
+- Any schema change that drops or rewrites existing rating data: back up `brt.sqlite3` first and ask.

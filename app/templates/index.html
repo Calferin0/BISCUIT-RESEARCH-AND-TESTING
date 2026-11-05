@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Case files open: {{ biscuits | length }} · Agent {{ me.name }}</p>
+  <h1>Specimens under evaluation</h1>
+  {% if todo %}
+  <p class="lede">You have <strong>{{ todo }}</strong> specimen{{ 's' if todo != 1 }} awaiting your field report.</p>
+  {% elif biscuits %}
+  <p class="lede">Every specimen reported on. Exemplary work, agent. 🫡</p>
+  {% endif %}
+</section>
+
+{% if not biscuits %}
+<div class="empty panel">
+  <p class="placeholder" aria-hidden="true">🫙</p>
+  <p class="lede">No specimens on file. Somebody has eaten the evidence.</p>
+  <a class="btn" href="{{ url_for('views.add_biscuit') }}">Log the first specimen</a>
+</div>
+{% else %}
+<ul class="grid">
+  {% for b in biscuits %}
+  <li>
+    <a class="card" href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">
+      {% set show_results = b.mine %}
+      <div class="card-photo">{% include "_photo.html" %}</div>
+      <div class="card-body">
+        <h2>{{ b.name }}</h2>
+        {% if b.brand %}<p class="card-brand">{{ b.brand }}</p>{% endif %}
+        {% if b.n and not b.mine %}
+        <p class="card-brand">🔒 {{ b.n }} report{{ 's' if b.n != 1 }} · sealed until you file</p>
+        {% elif b.n %}
+        <div class="score">
+          <span class="score-num">{{ "%.1f" | format(b.overall) }}</span>
+          <span class="meter"><span style="--pct: {{ (b.overall / 5 * 100) | round(1) }}%"></span></span>
+          <span class="score-n">{{ b.n }} report{{ 's' if b.n != 1 }}</span>
+        </div>
+        {% else %}
+        <p class="card-brand">No reports yet</p>
+        {% endif %}
+        <p class="status {{ 'done' if b.mine else 'todo' }}">{{ '✓ Your report is filed' if b.mine else '● Awaiting your report' }}</p>
+      </div>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

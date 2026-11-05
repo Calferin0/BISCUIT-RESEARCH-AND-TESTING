@@ -1,0 +1,5 @@
+{#- Biscuit photo (or placeholder) plus verdict stamp. Expects `b` with image, n, overall.
+    Set `show_results = false` before including to hide the verdict (blind rating). -#}
+{% if b.image %}<img src="{{ url_for('views.upload', filename=b.image) }}" alt="Photo of {{ b.name }}" loading="lazy">
+{% else %}<span class="placeholder" aria-hidden="true">🍪</span>{% endif %}
+{% if b.n and show_results is not defined or b.n and show_results %}{% set vd = verdict(b.overall) %}<span class="stamp stamp-{{ vd.tone }}">{{ vd.stamp }}</span>{% endif %}

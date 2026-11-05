@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ b.name }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('views.index') }}">← All specimens</a>
+
+{#- Blind rating: until this agent has filed, the server doesn't send any results at all.
+    Hiding them only with CSS would still leak them to anyone who views the page source. -#}
+{% set show_results = mine is not none %}
+<article class="dossier">
+  <div class="dossier-photo">{% include "_photo.html" %}</div>
+  <div class="dossier-body">
+    <p class="eyebrow">Specimen #{{ "%03d" | format(b.id) }}{% if b.added_by_name %} · logged by Agent {{ b.added_by_name }}{% endif %}</p>
+    <h1>{{ b.name }}</h1>
+    {% if b.brand %}<p class="muted">{{ b.brand }}</p>{% endif %}
+
+    {% if not show_results %}
+    <div class="sealed">
+      <span class="stamp stamp-sealed">Sealed</span>
+      <p class="lede">{% if b.n %}{{ b.n }} agent{{ 's have' if b.n != 1 else ' has' }} filed. {% endif %}Results stay sealed until you file your own report. No peeking, no groupthink.</p>
+    </div>
+    {% elif b.n %}
+    <p class="verdict">
+      <span class="score-num big">{{ "%.1f" | format(b.overall) }}</span>
+      <em>{{ verdict(b.overall).line }}</em>
+    </p>
+    <dl class="bars">
+      {% for c in CATEGORIES %}{% set avg = cats.get(c.key) %}
+      <dt>{{ c.label }}</dt>
+      <dd>{% if avg is not none %}<span class="meter"><span style="--pct: {{ (avg / 5 * 100) | round(1) }}%"></span></span><span class="num">{{ "%.1f" | format(avg) }}</span>{% elif c.skippable %}<span class="muted small">🏜️ Purists only so far. Nobody's dunked it.</span>{% else %}<span class="muted small">no scores yet</span>{% endif %}</dd>
+      {% endfor %}
+    </dl>
+    <p class="muted mono small">Based on {{ b.n }} field report{{ 's' if b.n != 1 }}.</p>
+    {% else %}
+    <p class="lede">No field reports yet. Be the first to taste-test.</p>
+    {% endif %}
+  </div>
+</article>
+
+{% if not b.image %}
+<details class="panel photo-panel">
+  <summary><strong>📸 No evidence photo yet. Add one?</strong></summary>
+  <form method="post" action="{{ url_for('views.add_photo', biscuit_id=b.id) }}" enctype="multipart/form-data" class="stack" data-name-hint="{{ b.name }}">
+    {% set search_url = url_for('views.api_image_search') %}{% set allow_url = false %}{% set form = {} %}
+    {% include "_photo_picker.html" %}
+    <button class="btn btn-wide" type="submit">Attach photo</button>
+  </form>
+</details>
+{% endif %}
+
+<section class="panel">
+  <h2>{{ "Amend your field report" if mine else "File your field report" }}</h2>
+  <form method="post" action="{{ url_for('views.rate', biscuit_id=b.id) }}" class="rate-form" data-rate-form>
+    {% set ns_purist = namespace(shown=false) %}
+    {% for c in CATEGORIES %}
+    {% if c.skippable and not ns_purist.shown %}{% set ns_purist.shown = true %}
+    <label class="purist">
+      <input type="checkbox" name="{{ PURIST_FIELD }}" value="1" data-purist{% if mine and is_purist(mine.scores) %} checked{% endif %}>
+      <span><strong>{{ PURIST_LABEL }}</strong><small>{{ PURIST_PITCH }}</small></span>
+    </label>
+    {% endif %}
+    <fieldset class="rate{{ ' skippable' if c.skippable }}">
+      <legend>{{ c.label }} <small>{{ c.hint }}</small></legend>
+      {#- DOM order is 5..1 and flex row-reverse shows 1..5. That lets `:checked ~ label` light up
+          the chosen biscuit and everything to its left with CSS alone. -#}
+      <div class="biscuits">
+        {% for v in range(5, 0, -1) %}
+        <input type="radio" id="{{ c.key }}-{{ v }}" name="{{ c.key }}" value="{{ v }}" required{% if mine and mine.scores.get(c.key) == v %} checked{% endif %}>
+        <label for="{{ c.key }}-{{ v }}" title="{{ v }} / 5"><span class="sr-only">{{ v }} out of 5</span><span aria-hidden="true">🍪</span></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    {% endfor %}
+    <label class="field">Field notes <small>optional</small>
+      <textarea name="comment" maxlength="500" rows="3" placeholder="Held structural integrity for a full dunk. Left a crime scene on my keyboard.">{{ mine.comment if mine }}</textarea>
+    </label>
+    <p class="preview mono" data-preview aria-live="polite"></p>
+    <button class="btn btn-wide" type="submit">{{ "Update report" if mine else "Submit report" }}</button>
+  </form>
+</section>
+
+{% if show_results and reports %}
+<section class="panel">
+  <h2>Field reports <span class="muted">({{ reports | length }})</span></h2>
+  <ul class="reports">
+    {% for r in reports %}
+    <li class="report">
+      <div class="report-head">
+        <span class="avatar" aria-hidden="true">{{ r.avatar }}</span>
+        <strong>Agent {{ r.name }}</strong>
+        {% if r.overall is not none %}<span class="score-num">{{ "%.1f" | format(r.overall) }}</span>{% endif %}
+        <time class="muted mono small">{{ r.updated_at[:10] }}</time>
+      </div>
+      <div class="chips">
+        {% for c in CATEGORIES %}{% if c.key in r.scores %}<span class="chip">{{ c.short }} <b>{{ r.scores[c.key] }}</b></span>{% endif %}{% endfor %}
+        {% if is_purist(r.scores) %}<span class="chip chip-purist">{{ PURIST_LABEL }}</span>{% endif %}
+      </div>
+      {% if r.comment %}<blockquote>{{ r.comment }}</blockquote>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

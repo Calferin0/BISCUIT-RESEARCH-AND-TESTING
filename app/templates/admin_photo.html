@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Photo · {{ b.name }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('admin.index') }}#biscuits">← Control room</a>
+<section class="panel narrow">
+  <p class="eyebrow">Control room · evidence photo</p>
+  <h1>{{ b.name }}</h1>
+  {% if b.brand %}<p class="muted">{{ b.brand }}</p>{% endif %}
+
+  {% if b.image %}
+  <figure class="current-photo">
+    <img src="{{ url_for('views.upload', filename=b.image) }}" alt="Current photo of {{ b.name }}">
+    <figcaption class="muted small">Current photo · source: {{ b.image_source or "upload" }}. Saving a new one replaces it (the old file is kept on disk).</figcaption>
+  </figure>
+  {% else %}
+  <p class="lede">No photo yet.</p>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="stack" data-name-hint="{{ b.name }}">
+    {% set search_url = url_for('admin.api_image_search') %}{% set allow_url = true %}{% set form = {} %}
+    {% include "_photo_picker.html" %}
+    <button class="btn btn-wide" type="submit">{{ "Replace photo" if b.image else "Save photo" }}</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111317">
+<title>{% block title %}Specimens{% endblock %} · BRT</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍪%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/brt.css') }}">
+<script src="{{ url_for('static', filename='js/brt.js') }}" defer></script>
+</head>
+{%- set flashes = get_flashed_messages(with_categories=true) %}
+{%- set ns = namespace(party=false) %}
+{%- for cat, _ in flashes %}{% if cat == 'celebrate' %}{% set ns.party = true %}{% endif %}{% endfor %}
+<body{% if ns.party %} data-celebrate{% endif %}{% if me %} data-ping-url="{{ url_for('views.ping') }}"{% endif %}>
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track">
+    {%- for _ in range(2) %}
+    <span>CLASSIFIED ✦ MOTION IMPOSSIBLE R&amp;D ✦ BISCUIT RESEARCH &amp; TESTING DIVISION ✦ EYES ONLY ✦ DO NOT DUNK SENSITIVE DOCUMENTS ✦ CRUMBS ARE EVIDENCE ✦&nbsp;</span>
+    {%- endfor %}
+  </div>
+</div>
+
+<header class="topbar">
+  <a class="brand" href="{{ url_for('views.index') }}">
+    <span class="brand-mark" aria-hidden="true">🍪</span>
+    <span class="brand-text"><strong>BRT</strong><small>Biscuit Research &amp; Testing</small></span>
+  </a>
+  {% if me %}
+  <span class="agent-badge" title="Signed in as Agent {{ me.name }}">{{ me.avatar }}<span class="agent-name"> Agent {{ me.name }}</span></span>
+  <nav class="nav" aria-label="Main">
+    <a href="{{ url_for('views.index') }}"{% if request.endpoint == 'views.index' %} aria-current="page"{% endif %}>Specimens</a>
+    <a href="{{ url_for('views.leaderboard') }}"{% if request.endpoint == 'views.leaderboard' %} aria-current="page"{% endif %}>Leaderboard</a>
+    <a class="btn btn-small" href="{{ url_for('views.add_biscuit') }}">+ Specimen</a>
+  </nav>
+  {% endif %}
+</header>
+
+<main class="wrap">
+  {% for cat, msg in flashes %}
+  <div class="flash flash-{{ cat }}" role="status">{{ msg }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer wrap">
+  {% if product %}
+  <figure class="sighting">
+    <img src="{{ product.url }}" alt="{{ product.caption }}" loading="lazy">
+    <figcaption><span class="eyebrow">Field kit sighting</span><strong>{{ product.caption }}</strong></figcaption>
+  </figure>
+  {% endif %}
+  <p class="muted mono">BRT Division · All findings are final · Crumbs are not.</p>
+</footer>
+
+{#- The E-STOP: one press swaps BRT for a fake "work" screen. Esc or another press brings it back.
+    While active, the button fades to near-invisible until hovered. -#}
+<div class="stealth" data-stealth hidden>
+  <img alt="" data-stealth-img hidden>
+  <div class="stealth-fallback" data-stealth-fallback hidden>
+    <div class="sf-menu">File&nbsp;&nbsp;Edit&nbsp;&nbsp;View&nbsp;&nbsp;Project&nbsp;&nbsp;Flash&nbsp;&nbsp;Debug&nbsp;&nbsp;Peripherals&nbsp;&nbsp;Tools&nbsp;&nbsp;Window&nbsp;&nbsp;Help</div>
+    <div class="sf-body">
+      <div class="sf-tree">
+        <p>▾ Project: CM7</p><p>&nbsp;&nbsp;▸ Application</p><p>&nbsp;&nbsp;▸ Drivers</p><p>&nbsp;&nbsp;▾ ControlLayer</p>
+        <p>&nbsp;&nbsp;&nbsp;&nbsp;motion_ctrl.c</p><p>&nbsp;&nbsp;&nbsp;&nbsp;motion_ctrl.h</p><p>&nbsp;&nbsp;&nbsp;&nbsp;pid.c</p><p>&nbsp;&nbsp;▸ Middleware</p>
+      </div>
+<pre class="sf-code">/**
+ * @file    motion_ctrl.c
+ * @brief   Closed-loop axis control, 800 Hz.
+ */
+
+#include "motion_ctrl.h"
+#include "pid.h"
+
+static pid_state_t s_axis_pid = {0};
+
+void MotionCtrl_Step(const axis_cmd_t *cmd, axis_state_t *state)
+{
+    const float error = cmd->target - state->position;
+    const float out   = PID_Update(&amp;s_axis_pid, error, CTRL_DT_S);
+
+    state->demand = Clamp(out, -DEMAND_LIMIT, DEMAND_LIMIT);
+}</pre>
+    </div>
+    <pre class="sf-out">Build started: Project: CM7
+compiling motion_ctrl.c...
+compiling pid.c...
+linking...
+Program Size: Code=48212 RO-data=3120 RW-data=412 ZI-data=20836
+".\Objects\CM7.axf" - 0 Error(s), 0 Warning(s).</pre>
+  </div>
+</div>
+<div class="estop-wrap">
+  <button type="button" class="estop" data-estop data-shots='{{ work_shots | tojson }}'
+          aria-pressed="false" aria-label="Work mode: hide BRT behind a work screen (Esc to exit)" title="WORK MODE (Esc to exit)">E-STOP</button>
+  <span class="estop-legend" aria-hidden="true">WORK MODE</span>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,33 @@
+{#- Photo chooser: upload, Open Food Facts search (needs JS), optional pasted URL.
+    Expects: search_url (image-search API), allow_url (bool). Must sit inside a multipart form. -#}
+<fieldset class="picker" data-photo-picker data-search-url="{{ search_url }}" data-thumb-url="{{ url_for('views.thumb') }}">
+  <legend>Evidence photo <small>optional</small></legend>
+
+  <label class="field">Upload one
+    <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif">
+  </label>
+
+  <div class="field">
+    <span>…or find a pack shot online</span>
+    <div class="search-row">
+      <input type="search" data-search-q placeholder="e.g. Hobnobs" aria-label="Search for a biscuit photo">
+      <button type="button" class="btn btn-small btn-ghost" data-search-go>Search</button>
+    </div>
+    <p class="muted small" data-search-status aria-live="polite"></p>
+    <div class="web-results" data-search-results></div>
+    {% if form and form.web_image %}
+    <label class="web-result kept">
+      <input type="radio" name="web_image" value="{{ form.web_image }}" checked>
+      <img src="{{ url_for('views.thumb', u=form.web_image) }}" alt="Previously chosen photo">
+      <span>Your earlier pick</span>
+    </label>
+    {% endif %}
+    <p class="muted small">Pack shots from <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> (CC BY-SA). A copy is saved on the BRT PC.</p>
+  </div>
+
+  {% if allow_url %}
+  <label class="field">…or paste any image link <small>control room only</small>
+    <input type="url" name="image_url" placeholder="https://…/biscuit.jpg" autocomplete="off">
+  </label>
+  {% endif %}
+</fieldset>

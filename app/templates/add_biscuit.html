@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Log a specimen{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('views.index') }}">← All specimens</a>
+<section class="panel narrow">
+  <p class="eyebrow">New case file</p>
+  <h1>Log a specimen</h1>
+  <p class="muted">New biscuits only! We'll check the files for anything similar as you type.</p>
+
+  {% if notice %}<div class="flash flash-error" role="alert">{{ notice }}</div>{% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="stack" data-add-form
+        data-similar-url="{{ url_for('views.api_similar') }}">
+    <label class="field">Biscuit name
+      <input name="name" required maxlength="60" autocomplete="off" placeholder="e.g. Chocolate Digestive" value="{{ form.name }}">
+    </label>
+    <label class="field">Brand <small>optional</small>
+      <input name="brand" maxlength="60" autocomplete="off" placeholder="e.g. Supermarket own-brand" value="{{ form.brand }}">
+    </label>
+
+    <div class="dupes{% if matches | selectattr('exact') | list %} exact{% endif %}" data-dupes{% if not matches %} hidden{% endif %}>
+      <p class="eyebrow">Already on file?</p>
+      <ul data-dupes-list>
+        {% for m in matches %}
+        <li><a href="{{ url_for('views.biscuit', biscuit_id=m.id) }}">{{ m.name }}</a>{% if m.brand %} <span class="muted">· {{ m.brand }}</span>{% endif %}{% if m.exact %} <span class="tag">same biscuit</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      <label class="confirm" data-dupes-confirm{% if matches | selectattr('exact') | list %} hidden{% endif %}>
+        <input type="checkbox" name="confirm_new" value="1"{% if form.confirm_new %} checked{% endif %}>
+        None of these. Mine is a different biscuit.
+      </label>
+    </div>
+
+    {% set search_url = url_for('views.api_image_search') %}{% set allow_url = false %}
+    {% include "_photo_picker.html" %}
+    {% if notice %}<p class="muted small">If you'd uploaded a photo, please choose it again (browsers forget files on reload).</p>{% endif %}
+
+    <button class="btn btn-wide" type="submit">Open case file</button>
+  </form>
+</section>
+{% endblock %}

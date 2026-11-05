@@ -1,0 +1,28 @@
+# Python / tooling
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Machine-specific Claude Code config (local scratch paths)
+.claude/launch.json
+.claude/settings.local.json
+
+# --- DATA NEVER GOES IN GIT -------------------------------------------------------------
+# Live data lives in %LOCALAPPDATA%\BRT (see CLAUDE.md D2). These rules are a safety net in
+# case a copy ever lands in this folder: the DB holds every agent's join token (= their login).
+*.sqlite3
+*.sqlite3-*
+*.db
+secret_key
+brt.log
+brt.pid
+uploads/
+*.csv
+
+# Images that stay on the BRT PC: the fake work screens (internal screenshots) and product
+# photos. The READMEs in those folders are tracked so the folders exist on a fresh clone.
+app/static/img/work/*
+!app/static/img/work/README.txt
+app/static/img/products/*
+!app/static/img/products/README.txt
