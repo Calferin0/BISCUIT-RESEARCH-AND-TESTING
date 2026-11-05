@@ -740,6 +740,115 @@ def grant_loot(member_id: int, item_key: str, cost: int, refund: int, reason: st
                          (member_id, item_key))
 
 
+# --- duels ------------------------------------------------------------------------------
+# Stakes are escrowed through the ledger: the challenger's on challenge, the opponent's on
+# accept. The pot (2 x wager) goes to the winner; draws, declines and cancels refund.
+
+def create_duel(challenger: int, opponent: int, wager: int, iou: bool) -> int:
+    conn = get_db()
+    with conn:
+        cur = conn.execute("INSERT INTO duels (challenger_id, opponent_id, wager, biscuit_iou) VALUES (?, ?, ?, ?)",
+                           (challenger, opponent, wager, int(iou)))
+        if wager:
+            ledger_add(challenger, -wager, "Duel stake (held)", f"duel/{cur.lastrowid}", conn)
+    return cur.lastrowid
+
+
+def get_duel(duel_id: int) -> sqlite3.Row | None:
+    return get_db().execute(
+        """SELECT d.*, c.name AS challenger, c.avatar AS c_avatar, o.name AS opponent, o.avatar AS o_avatar
+           FROM duels d JOIN members c ON c.id = d.challenger_id JOIN members o ON o.id = d.opponent_id
+           WHERE d.id = ?""", (duel_id,)
+    ).fetchone()
+
+
+def duel_moves(duel_id: int) -> list[tuple[int, int, str]]:
+    return [(r["round"], r["member_id"], r["move"]) for r in
+            get_db().execute("SELECT round, member_id, move FROM duel_moves WHERE duel_id = ?", (duel_id,))]
+
+
+def accept_duel(duel_id: int, opponent: int, wager: int) -> bool:
+    conn = get_db()
+    with conn:
+        ok = conn.execute("""UPDATE duels SET status = 'active', accepted_at = datetime('now')
+                             WHERE id = ? AND opponent_id = ? AND status = 'pending'""",
+                          (duel_id, opponent)).rowcount == 1
+        if ok and wager:
+            ledger_add(opponent, -wager, "Duel stake (held)", f"duel/{duel_id}", conn)
+    return ok
+
+
+def close_pending_duel(duel_id: int, status: str) -> bool:
+    """Decline (opponent) or cancel (challenger) a pending duel; refunds the challenger's stake."""
+    conn = get_db()
+    with conn:
+        d = conn.execute("SELECT * FROM duels WHERE id = ? AND status = 'pending'", (duel_id,)).fetchone()
+        if d is None:
+            return False
+        conn.execute("UPDATE duels SET status = ?, finished_at = datetime('now') WHERE id = ?", (status, duel_id))
+        if d["wager"]:
+            ledger_add(d["challenger_id"], d["wager"], f"Duel {status}: stake back", f"duel/{duel_id}", conn)
+    return True
+
+
+def add_move(duel_id: int, rnd: int, member_id: int, move: str) -> bool:
+    conn = get_db()
+    try:
+        with conn:
+            conn.execute("INSERT INTO duel_moves (duel_id, round, member_id, move) VALUES (?, ?, ?, ?)",
+                         (duel_id, rnd, member_id, move))
+        return True
+    except sqlite3.IntegrityError:
+        return False  # already moved this round (double tap)
+
+
+def finish_duel(duel_id: int, winner_id: int | None) -> bool:
+    """Settle exactly once: the status guard means two simultaneous final moves can't pay twice."""
+    conn = get_db()
+    with conn:
+        d = conn.execute("SELECT * FROM duels WHERE id = ?", (duel_id,)).fetchone()
+        settled = conn.execute("""UPDATE duels SET status = 'done', winner_id = ?, finished_at = datetime('now')
+                                  WHERE id = ? AND status = 'active'""", (winner_id, duel_id)).rowcount == 1
+        if settled and d["wager"]:
+            ref = f"duel/{duel_id}"
+            if winner_id is None:
+                ledger_add(d["challenger_id"], d["wager"], "Duel drawn: stake back", ref, conn)
+                ledger_add(d["opponent_id"], d["wager"], "Duel drawn: stake back", ref, conn)
+            else:
+                ledger_add(winner_id, 2 * d["wager"], "Duel won: the pot", ref, conn)
+    return settled
+
+
+def list_duels(member_id: int | None = None, limit: int = 40) -> list[sqlite3.Row]:
+    where, params = ("WHERE d.challenger_id = ? OR d.opponent_id = ?", (member_id, member_id)) \
+        if member_id is not None else ("", ())
+    return get_db().execute(
+        f"""SELECT d.*, c.name AS challenger, c.avatar AS c_avatar, o.name AS opponent, o.avatar AS o_avatar,
+                   w.name AS winner
+            FROM duels d JOIN members c ON c.id = d.challenger_id JOIN members o ON o.id = d.opponent_id
+            LEFT JOIN members w ON w.id = d.winner_id
+            {where} ORDER BY d.id DESC LIMIT ?""", (*params, limit)
+    ).fetchall()
+
+
+def mark_iou_paid(duel_id: int, winner_id: int) -> bool:
+    conn = get_db()
+    with conn:
+        return conn.execute("""UPDATE duels SET iou_paid = 1 WHERE id = ? AND winner_id = ?
+                               AND biscuit_iou = 1 AND status = 'done'""", (duel_id, winner_id)).rowcount == 1
+
+
+def duel_records() -> list[sqlite3.Row]:
+    return get_db().execute(
+        """SELECT m.id, m.name, m.avatar,
+                  SUM(d.winner_id = m.id) AS wins,
+                  SUM(d.winner_id IS NOT NULL AND d.winner_id != m.id) AS losses,
+                  SUM(d.winner_id IS NULL) AS draws
+           FROM members m JOIN duels d ON (d.challenger_id = m.id OR d.opponent_id = m.id) AND d.status = 'done'
+           WHERE m.active = 1 GROUP BY m.id ORDER BY wins DESC, losses ASC, m.name"""
+    ).fetchall()
+
+
 def recent_ledger(member_id: int, limit: int = 12) -> list[sqlite3.Row]:
     return get_db().execute("SELECT * FROM ledger WHERE member_id = ? ORDER BY id DESC LIMIT ?",
                             (member_id, limit)).fetchall()

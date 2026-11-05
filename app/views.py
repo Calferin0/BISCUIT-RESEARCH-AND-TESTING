@@ -11,7 +11,8 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, session, url_for)
 
-from . import awards, cases, db, images, loot, points, radar, rarity, recommend, scoring, shop, similarity, util
+from . import (awards, cases, db, duel, images, loot, points, radar, rarity, recommend, scoring, shop,
+               similarity, util)
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -51,6 +52,9 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.points_page": "Counting their Biscuit Points",
         "views.shop_page": "Browsing the Biscuit Shop",
         "views.radar_page": "Scanning the Biscuit Radar",
+        "views.arena": "Lurking in the Biscuit VS arena",
+        "views.duel_page": "Mid-duel ⚔️",
+        "views.loot_page": "Shaking a Mystery Tin",
         "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
     }.get(endpoint)
@@ -480,6 +484,106 @@ def loot_page():
                            refund=loot.COMMON_REFUND, dupe=loot.DUPE_POINTS,
                            collection=[i for i in shop.CATALOGUE if i.loot_tier],
                            owned=owned)
+
+
+# --- Biscuit VS ------------------------------------------------------------------------
+
+def _duel_or_404(duel_id: int):
+    d = db.get_duel(duel_id)
+    if d is None:
+        abort(404)
+    return d
+
+
+@bp.get("/arena")
+@agent_required
+def arena():
+    me_id = g.member["id"]
+    mine = db.list_duels(me_id)
+    states = {}
+    for d in mine:
+        if d["status"] == "active":
+            states[d["id"]] = duel.build_state(d["challenger_id"], d["opponent_id"], db.duel_moves(d["id"]))
+    opponents = [m for m in db.list_members() if m["active"] and m["id"] != me_id]
+    ious = [d for d in db.list_duels(None, 200) if d["status"] == "done" and d["biscuit_iou"]
+            and d["winner_id"] and not d["iou_paid"]]
+    return render_template("arena.html", duels=mine, states=states, opponents=opponents, ious=ious,
+                           balance=balance(me_id), max_wager=duel.MAX_WAGER, records=db.duel_records(),
+                           recent=[d for d in db.list_duels(None, 12) if d["status"] == "done"], moves=duel.MOVES)
+
+
+@bp.post("/arena/challenge")
+@agent_required
+def challenge():
+    me_id = g.member["id"]
+    back = redirect(url_for("views.arena"))
+    opp = db.get_member(request.form.get("opponent_id", type=int) or 0)
+    wager = request.form.get("wager", type=int) or 0
+    if opp is None or not opp["active"] or opp["id"] == me_id:
+        flash("Pick a worthy opponent (not yourself, tempting as it is).", "error")
+        return back
+    if not 0 <= wager <= duel.MAX_WAGER:
+        flash(f"Wagers go from 0 to {duel.MAX_WAGER} points.", "error")
+        return back
+    if wager > balance(me_id):
+        flash("You can't bet points you don't have. Nice try.", "error")
+        return back
+    duel_id = db.create_duel(me_id, opp["id"], wager, bool(request.form.get("biscuit_iou")))
+    flash(f"⚔️ Gauntlet thrown at {opp['name']}! {f'{wager} points on the line.' if wager else 'For honour alone.'}", "celebrate")
+    return redirect(url_for("views.duel_page", duel_id=duel_id))
+
+
+@bp.get("/duel/<int:duel_id>")
+@agent_required
+def duel_page(duel_id: int):
+    d = _duel_or_404(duel_id)
+    st = duel.build_state(d["challenger_id"], d["opponent_id"], db.duel_moves(duel_id))
+    me_id = g.member["id"]
+    return render_template("duel.html", d=d, st=st, moves=duel.MOVES, me_in=me_id in (d["challenger_id"], d["opponent_id"]),
+                           my_turn=d["status"] == "active" and me_id in st.waiting_on,
+                           can_afford=balance(me_id) >= d["wager"])
+
+
+@bp.post("/duel/<int:duel_id>/<action>")
+@agent_required
+def duel_action(duel_id: int, action: str):
+    d = _duel_or_404(duel_id)
+    me_id = g.member["id"]
+    back = redirect(url_for("views.duel_page", duel_id=duel_id))
+    if action == "accept" and me_id == d["opponent_id"]:
+        if balance(me_id) < d["wager"]:
+            flash(f"You need {d['wager']} points to match the stake.", "error")
+        elif db.accept_duel(duel_id, me_id, d["wager"]):
+            flash("Challenge accepted. Choose your weapon. 🫖💥🍪", "celebrate")
+    elif action in ("decline", "cancel") and me_id == (d["opponent_id"] if action == "decline" else d["challenger_id"]):
+        if db.close_pending_duel(duel_id, "declined" if action == "decline" else "cancelled"):
+            flash("Duel called off. Stakes returned.", "info")
+        return redirect(url_for("views.arena"))
+    elif action == "paid" and me_id == d["winner_id"]:
+        db.mark_iou_paid(duel_id, me_id)
+        flash("Biscuit debt settled. Honour restored. 🍪🤝", "celebrate")
+    elif action == "move":
+        move = request.form.get("move", "")
+        st = duel.build_state(d["challenger_id"], d["opponent_id"], db.duel_moves(duel_id))
+        if d["status"] != "active" or me_id not in st.waiting_on or move not in duel.MOVES:
+            abort(400)
+        db.add_move(duel_id, st.current, me_id, move)
+        st = duel.build_state(d["challenger_id"], d["opponent_id"], db.duel_moves(duel_id))
+        if st.finished and db.finish_duel(duel_id, st.winner):
+            if st.winner == me_id:
+                flash(f"🏆 VICTORY! {'+' + str(2 * d['wager']) + ' points. ' if d['wager'] else ''}"
+                      f"{'And they owe you a packet of biscuits. ' if d['biscuit_iou'] else ''}", "celebrate")
+            elif st.winner is None:
+                flash("A draw! Stakes returned. The tin remains undecided.", "info")
+            else:
+                flash("Defeat. The crumbs settle. 😔" + (" Better go buy those biscuits." if d["biscuit_iou"] else ""), "info")
+        elif not st.finished and me_id in st.waiting_on:
+            flash(st.rounds[-1].line if st.rounds else "Move locked in.", "info")  # round resolved, go again
+        else:
+            flash("Move locked in. Waiting for your opponent… 🤫", "info")
+    else:
+        abort(403)
+    return back
 
 
 @bp.post("/shop/equip/<slot>")

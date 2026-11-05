@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
+{% block title %}Biscuit VS{% endblock %}
+{% block content %}
+<section class="hero vs-hero">
+  <p class="eyebrow">Settle it like adults. With biscuits.</p>
+  <h1>⚔️ Biscuit VS</h1>
+  <p class="lede"><strong>🫖 Dunk</strong> beats <strong>💥 Snap</strong> · <strong>💥 Snap</strong> beats <strong>🍪 Crumble</strong> · <strong>🍪 Crumble</strong> beats <strong>🫖 Dunk</strong>.
+    First to two round wins takes the pot. Moves are secret until you've both played.</p>
+</section>
+
+<section class="panel narrow">
+  <h2>Throw down the gauntlet</h2>
+  <form method="post" action="{{ url_for('views.challenge') }}" class="stack">
+    <label class="field">Opponent
+      <select name="opponent_id" required>
+        <option value="">Choose your victim…</option>
+        {% for m in opponents %}<option value="{{ m.id }}">{{ m.avatar }} {{ m.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="field">Wager <small>0–{{ max_wager }} points · you have 🪙 {{ balance }} · held until the duel ends</small>
+      <input type="number" name="wager" min="0" max="{{ [max_wager, balance] | min if balance > 0 else 0 }}" value="{{ [10, balance] | min if balance > 0 else 0 }}">
+    </label>
+    <label class="confirm"><input type="checkbox" name="biscuit_iou" value="1"> 🍪 Loser buys the winner a packet of biscuits</label>
+    <button class="btn btn-wide" type="submit">⚔️ Send challenge</button>
+  </form>
+</section>
+
+{% set incoming = duels | selectattr("status", "equalto", "pending") | selectattr("opponent_id", "equalto", me.id) | list %}
+{% set outgoing = duels | selectattr("status", "equalto", "pending") | selectattr("challenger_id", "equalto", me.id) | list %}
+{% set active = duels | selectattr("status", "equalto", "active") | list %}
+
+{% if incoming %}
+<h2 class="section-title">📨 Challenges for you</h2>
+<ul class="duel-list">{% for d in incoming %}
+  <li class="duel-row incoming"><a href="{{ url_for('views.duel_page', duel_id=d.id) }}">{{ d.c_avatar }} <strong>{{ d.challenger }}</strong> challenges you
+    · {{ d.wager }} pts{% if d.biscuit_iou %} + 🍪 IOU{% endif %}</a> <span class="tag tag-building">answer!</span></li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if active %}
+<h2 class="section-title">⚔️ Live duels</h2>
+<ul class="duel-list">{% for d in active %}{% set st = states[d.id] %}
+  <li class="duel-row{{ ' your-move' if me.id in st.waiting_on }}"><a href="{{ url_for('views.duel_page', duel_id=d.id) }}">
+    {{ d.c_avatar }} {{ d.challenger }} <strong class="mono">{{ st.score[d.challenger_id] }}–{{ st.score[d.opponent_id] }}</strong> {{ d.opponent }} {{ d.o_avatar }}
+    · round {{ st.current }}</a>
+    {% if me.id in st.waiting_on %}<span class="tag tag-building">your move!</span>{% else %}<span class="muted small">waiting…</span>{% endif %}</li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if outgoing %}
+<h2 class="section-title">⏳ Waiting for an answer</h2>
+<ul class="duel-list">{% for d in outgoing %}
+  <li class="duel-row"><a href="{{ url_for('views.duel_page', duel_id=d.id) }}">You → {{ d.o_avatar }} {{ d.opponent }} · {{ d.wager }} pts</a></li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if ious %}
+<h2 class="section-title">🧾 The Biscuit Debt Wall of Shame</h2>
+<ul class="duel-list">{% for d in ious %}{% set loser = d.opponent if d.winner_id == d.challenger_id else d.challenger %}
+  <li class="duel-row iou">🍪 <strong>{{ loser }}</strong> owes <strong>{{ d.winner }}</strong> a packet of biscuits <span class="muted small">(duel #{{ d.id }})</span></li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if records %}
+<h2 class="section-title">🏆 Duel standings</h2>
+<ol class="ranking panel points-ranking">{% for r in records %}
+  <li><span class="mono muted">{{ loop.index }}.</span><span class="rank-name">{{ agent(r.id, r.name, r.avatar, prefix="") }}</span>
+    <span class="mono small">{{ r.wins }}W {{ r.losses }}L{% if r.draws %} {{ r.draws }}D{% endif %}</span></li>{% endfor %}
+</ol>
+{% endif %}
+
+{% if recent %}
+<h2 class="section-title">📰 Recent results</h2>
+<ul class="duel-list">{% for d in recent %}
+  <li class="duel-row done"><a href="{{ url_for('views.duel_page', duel_id=d.id) }}">{{ d.c_avatar }} {{ d.challenger }} vs {{ d.opponent }} {{ d.o_avatar }}
+    · {% if d.winner %}🏆 {{ d.winner }}{% else %}🤝 draw{% endif %}{% if d.wager %} · {{ 2 * d.wager }} pts pot{% endif %}</a></li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Duel #{{ d.id }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('views.arena') }}">← Arena</a>
+<section class="duel-board panel">
+  <p class="eyebrow">Duel #{{ d.id }} · {% if d.wager %}🪙 {{ 2 * d.wager }} pot{% else %}for honour{% endif %}{% if d.biscuit_iou %} · 🍪 loser buys biscuits{% endif %}</p>
+  <div class="versus">
+    <div class="fighter{{ ' winner' if d.winner_id == d.challenger_id }}"><span class="fighter-avatar">{{ d.c_avatar }}</span><strong>{{ d.challenger }}</strong></div>
+    <div class="vs-score mono">{{ st.score[d.challenger_id] }}<span>–</span>{{ st.score[d.opponent_id] }}</div>
+    <div class="fighter{{ ' winner' if d.winner_id == d.opponent_id }}"><span class="fighter-avatar">{{ d.o_avatar }}</span><strong>{{ d.opponent }}</strong></div>
+  </div>
+
+  {% if d.status == 'pending' %}
+    {% if me.id == d.opponent_id %}
+    <p class="lede">{{ d.challenger }} has slapped you with a biscuit. Do you accept?</p>
+    <div class="row-actions" style="justify-content:center">
+      <form method="post" action="{{ url_for('views.duel_action', duel_id=d.id, action='accept') }}">
+        <button class="btn" type="submit"{% if not can_afford %} disabled title="You need {{ d.wager }} points"{% endif %}>⚔️ Accept{% if d.wager %} ({{ d.wager }} pts){% endif %}</button></form>
+      <form method="post" action="{{ url_for('views.duel_action', duel_id=d.id, action='decline') }}">
+        <button class="btn btn-ghost" type="submit">🐔 Decline</button></form>
+    </div>
+    {% elif me.id == d.challenger_id %}
+    <p class="lede">Waiting for {{ d.opponent }} to accept…</p>
+    <form method="post" action="{{ url_for('views.duel_action', duel_id=d.id, action='cancel') }}" style="text-align:center">
+      <button class="btn btn-small btn-ghost" type="submit">Withdraw the challenge</button></form>
+    {% else %}<p class="lede">Awaiting a response.</p>{% endif %}
+
+  {% elif d.status == 'active' %}
+    {% if my_turn %}
+    <p class="lede vs-prompt">Round {{ st.current }}: choose your weapon</p>
+    <form method="post" action="{{ url_for('views.duel_action', duel_id=d.id, action='move') }}" class="move-row">
+      {% for key, label in moves.items() %}
+      <button class="move-btn move-{{ key }}" type="submit" name="move" value="{{ key }}">
+        <span class="move-icon">{{ label.split(' ')[0] }}</span><span>{{ label.split(' ', 1)[1] }}</span></button>
+      {% endfor %}
+    </form>
+    {% elif me_in %}
+    <p class="lede vs-prompt">🤫 Move locked in. Waiting for your opponent… <span class="muted small">(refresh to check)</span></p>
+    {% else %}
+    <p class="lede vs-prompt">Round {{ st.current }} in progress. Spectators, keep your crumbs to yourselves.</p>
+    {% endif %}
+
+  {% elif d.status == 'done' %}
+    <p class="vs-result">{% if d.winner_id %}🏆 <strong>{{ d.challenger if d.winner_id == d.challenger_id else d.opponent }}</strong> wins{% if d.wager %} the {{ 2 * d.wager }}-point pot{% endif %}!{% else %}🤝 A draw. Stakes returned.{% endif %}</p>
+    {% if d.biscuit_iou and d.winner_id %}
+      {% if d.iou_paid %}<p class="muted">🍪 Biscuit debt paid in full. Honour restored.</p>
+      {% else %}
+        <p>🍪 <strong>{{ d.opponent if d.winner_id == d.challenger_id else d.challenger }}</strong> owes a packet of biscuits.</p>
+        {% if me.id == d.winner_id %}<form method="post" action="{{ url_for('views.duel_action', duel_id=d.id, action='paid') }}">
+          <button class="btn btn-small" type="submit">✅ They've paid up</button></form>{% endif %}
+      {% endif %}
+    {% endif %}
+  {% else %}
+    <p class="lede">This duel was {{ d.status }}. 🐔</p>
+  {% endif %}
+</section>
+
+{% if st.rounds %}
+<h2 class="section-title">📜 Round by round</h2>
+<ol class="round-list">
+  {% for r in st.rounds %}
+  <li class="round{{ ' drawn' if r.winner is none }}">
+    <span class="mono muted">R{{ r.number }}</span>
+    <span>{{ moves[r.moves[d.challenger_id]] }}</span><span class="muted">vs</span><span>{{ moves[r.moves[d.opponent_id]] }}</span>
+    <em class="small">{{ r.line }}</em>
+  </li>
+  {% endfor %}
+</ol>
+{% endif %}
+{% endblock %}
