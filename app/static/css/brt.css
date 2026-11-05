@@ -105,7 +105,12 @@ code { font-family: var(--mono); }
 @media (max-width: 420px) {
   .wide-only { display: none; }
   .narrow-only { display: inline; }
-  .nav a:not(.btn) { padding: 7px 6px; }
+  .nav { gap: 0; }
+  .nav a:not(.btn) { padding: 6px 5px; font-size: .84rem; }
+  .nav .btn-small { padding: 7px 9px; font-size: .8rem; }
+  /* If it still overflows, fade the right edge so it's obvious there's more to scroll to. */
+  .nav.scrolls { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  .nav.scrolls.at-end { -webkit-mask-image: none; mask-image: none; }
 }
 
 /* --- buttons + forms ------------------------------------------------------------------- */
@@ -563,6 +568,28 @@ a.agent-badge:hover { border-color: var(--accent); color: var(--ink); }
 .round { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; padding: 8px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
 .round em { flex-basis: 100%; color: var(--muted); }
 .round.drawn { opacity: .7; }
+
+/* --- daily: biscuit of the day + horoscope ---------------------------------------------- */
+.daily-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 8px 0 4px; }
+.botd, .horoscope { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: var(--radius); text-decoration: none; color: var(--ink); }
+.botd { background: linear-gradient(135deg, #3a2a10, #1c1813); border: 2px solid var(--accent); box-shadow: 0 0 24px rgb(243 168 59 / .25); }
+.botd-name { font-size: 1.4rem; }
+.horoscope { background: linear-gradient(135deg, #24163a, #14111f); border: 2px solid #b36bff; }
+.horoscope p { margin: 0; font-style: italic; }
+
+/* --- dunk-o-meter ----------------------------------------------------------------------- */
+.dunk-panel { text-align: center; }
+.dunk-display { font-size: 3.4rem; font-weight: 900; color: var(--accent); }
+.dunk-display span { font-size: 1.4rem; color: var(--muted); }
+.dunk-mug { position: relative; width: 110px; height: 110px; margin: 4px auto 16px; border: 5px solid #ece6d9; border-top: 0; border-radius: 0 0 26px 26px; overflow: hidden; }
+.dunk-mug::after { content: ""; position: absolute; right: -24px; top: 18px; width: 22px; height: 40px; border: 5px solid #ece6d9; border-left: 0; border-radius: 0 18px 18px 0; }
+.dunk-tea { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; background: linear-gradient(180deg, #a0682f, #6b3f15); }
+.dunk-biscuit { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); font-size: 2.6rem; z-index: 1; transition: top .4s ease; }
+.dunking .dunk-biscuit { top: 34px; animation: wobble-dunk 1.2s ease-in-out infinite; }
+@keyframes wobble-dunk { 50% { transform: translateX(-50%) rotate(8deg); } }
+.splat .dunk-biscuit { top: 46px; transform: translateX(-50%) scale(1.4); }
+.dunk-btn { font-size: 1.3rem; padding: 18px; }
+.dunking .dunk-btn { background: linear-gradient(180deg, #ff8a8a, var(--red)); box-shadow: 0 4px 0 #8a1d18; color: #fff; }
 
 /* --- admin: live presence ---------------------------------------------------------------- */
 .live-panel h2 { display: flex; align-items: center; gap: 8px; }

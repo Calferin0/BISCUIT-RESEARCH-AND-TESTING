@@ -11,7 +11,7 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, session, url_for)
 
-from . import (awards, cases, db, duel, images, loot, points, radar, rarity, recommend, scoring, shop,
+from . import (awards, cases, db, duel, fun, images, loot, points, radar, rarity, recommend, scoring, shop,
                similarity, util)
 from . import drops as drops_mod
 
@@ -55,6 +55,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.arena": "Lurking in the Biscuit VS arena",
         "views.duel_page": "Mid-duel ⚔️",
         "views.loot_page": "Shaking a Mystery Tin",
+        "views.dunk_page": "Timing a dunk ⏱️",
         "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
     }.get(endpoint)
@@ -366,8 +367,10 @@ def dashboard():
                for d in all_drops if d["id"] in links
                and drops_mod.countdown(d, today).split()[0] != "gone"]
     picks = recommend.next_tastings(logged, db.member_ratings(g.member["id"]), random.Random())
+    botd, botd_line = fun.biscuit_of_the_day([b for b in logged if b["active"]], today)
     return render_template("dashboard.html", timeline=timeline, picks=picks, kinds=drops_mod.KINDS,
-                           on_file=on_file, todo=sum(1 for b in logged if not b["mine"]), today=today)
+                           on_file=on_file, todo=sum(1 for b in logged if not b["mine"]), today=today,
+                           botd=botd, botd_line=botd_line, horoscope=fun.horoscope(g.member["id"], today))
 
 
 @bp.get("/api/scouting")
@@ -484,6 +487,34 @@ def loot_page():
                            refund=loot.COMMON_REFUND, dupe=loot.DUPE_POINTS,
                            collection=[i for i in shop.CATALOGUE if i.loot_tier],
                            owned=owned)
+
+
+# --- Dunk-O-Meter ----------------------------------------------------------------------
+
+DRINKS = {"tea": "🫖 Tea", "coffee": "☕ Coffee", "hot-choc": "🍫 Hot chocolate", "milk": "🥛 Milk"}
+
+
+@bp.route("/dunk", methods=["GET", "POST"])
+@agent_required
+def dunk_page():
+    if request.method == "POST":
+        b = db.get_biscuit(request.form.get("biscuit_id", type=int) or 0)
+        try:  # the JS timer and the no-JS fallback share a name; take whichever was filled in
+            seconds = float(next((v for v in request.form.getlist("seconds") if v.strip()), ""))
+        except ValueError:
+            seconds = -1
+        drink = request.form.get("drink", "tea")
+        # 0.3 s floor: a human can't tap faster; 900 s cap: anything longer means they wandered off.
+        if b is None or not b["active"] or not 0.3 <= seconds <= 900 or drink not in DRINKS:
+            flash("That dunk didn't register. Try again (and keep it under 15 minutes).", "error")
+        else:
+            db.add_dunk(g.member["id"], b["id"], seconds, drink)
+            verdict = ("Instant collapse. Tragic." if seconds < 3 else "Respectable." if seconds < 10
+                       else "Heroic structural integrity!" if seconds < 30 else "Is it even a biscuit?! 🛟")
+            flash(f"💦 {b['name']} lasted {seconds:.1f}s in {DRINKS[drink].split(' ', 1)[1].lower()}. {verdict}", "celebrate")
+        return redirect(url_for("views.dunk_page"))
+    return render_template("dunk.html", biscuits=[b for b in db.list_biscuits(None) if b["active"]],
+                           drinks=DRINKS, fame=db.dunk_hall_of_fame(), by_biscuit=db.dunk_by_biscuit())
 
 
 # --- Biscuit VS ------------------------------------------------------------------------

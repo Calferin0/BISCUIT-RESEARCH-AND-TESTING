@@ -9,10 +9,9 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-05, end of day):** schema v7, everything on the original roadmap built and
-**deployed** (17:17, via `deploy-brt.bat /yes`): dashboard and drops, case lifecycle, reopen
-requests, thumbs-up, Biscuit Points and shop, Biscuit Radar (26 OSM shops imported live).
-124 tests pass. In daily use by the team [MEASURED]. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
+**Status (2026-11-05, evening):** live BRT is on schema v7 (deployed 17:17: up to the Biscuit
+Radar). Pushed but **NOT yet deployed** (schema v8): rarity votes, admin edit pages, Radar tab,
+drop de-dupe, Mystery Tins, Biscuit VS duels, Biscuit of the Day, Dunk-O-Meter. 148 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
 internal goes in it (see `.gitignore`).
@@ -98,6 +97,28 @@ internal goes in it (see `.gitignore`).
   `Start-Process cmd.exe -ArgumentList ('/s /c ""<full path>\deploy-brt.bat" /yes"')` with
   redirected output. Never pipe a script that starts BRT, because the server inherits the pipe
   and the command never returns.
+- **D19: rarity** (`app/rarity.py`, schema v8). Team vote, one vote per agent; the most-voted tier
+  wins and ties go to the *rarer* tier. `biscuits.rarity_override` (admin) beats votes.
+- **D20: drops never duplicate specimens.** `views.drop_links` resolves a drop to a specimen by
+  explicit `drops.biscuit_id`, then exact name, then `drops.auto_link` (every word of a 2+ word
+  specimen name appears in the drop name). Linked drops show as "already on file" chips and give
+  the specimen an "on shelves now" badge.
+- **D21: points ledger.** Balance = earned (computed) − shop spend + `SUM(ledger.delta)`, defined
+  once in `views.balance`. Mystery Tins and duel stakes, pots and refunds all go through the
+  ledger. Ranks still use lifetime *earned* only.
+- **D22: Mystery Tins** (`app/loot.py`). Points only, never money; the odds table is shown in
+  full; loot-only cosmetics (`shop.Item.loot_tier`) can't be bought; duplicates convert to points;
+  Post/Redirect/Get so a refresh can't open a second tin.
+- **D23: Biscuit VS** (`app/duel.py`, pure). Dunk > Snap > Crumble > Dunk; first to 2; draws replay;
+  9-round cap. State is rebuilt from `duel_moves` and never stored. Stakes are escrowed via the
+  ledger; `db.finish_duel` settles once (status-guarded UPDATE). The opponent's current-round
+  move is never rendered until both have played. The "loser buys biscuits" IOU is just a flag
+  plus a winner-marked `iou_paid`: no money goes through the app.
+- **Auto price sweep: not possible from open data** (checked 2026-11-05: Open Prices had zero
+  GBP prices for 100 UK biscuits; supermarket scraping breaks their terms). Prices stay
+  team-reported. Don't invent them.
+- Fun extras: Biscuit of the Day and horoscope (`app/fun.py`, seeded by date, no storage) and the
+  Dunk-O-Meter (`dunks` table, `/dunk`).
 - **Next build:** suggestions from the weekly loop (`WEEKLY.md`).
 
 ## Architecture

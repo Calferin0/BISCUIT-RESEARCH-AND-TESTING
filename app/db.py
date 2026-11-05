@@ -209,6 +209,16 @@ CREATE TABLE IF NOT EXISTS duel_moves (
     move      TEXT    NOT NULL,                     -- dunk | snap | crumble
     PRIMARY KEY (duel_id, round, member_id)         -- one move per player per round
 ) WITHOUT ROWID;
+
+-- v8: the Dunk-O-Meter. How long did it survive in the tea?
+CREATE TABLE IF NOT EXISTS dunks (
+    id         INTEGER PRIMARY KEY,
+    member_id  INTEGER NOT NULL REFERENCES members(id),
+    biscuit_id INTEGER NOT NULL REFERENCES biscuits(id),
+    seconds    REAL    NOT NULL CHECK (seconds > 0 AND seconds <= 900),
+    drink      TEXT    NOT NULL DEFAULT 'tea',
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 # v4 -> v5 adds columns to an existing table, which CREATE TABLE IF NOT EXISTS can't do.
@@ -846,6 +856,32 @@ def duel_records() -> list[sqlite3.Row]:
                   SUM(d.winner_id IS NULL) AS draws
            FROM members m JOIN duels d ON (d.challenger_id = m.id OR d.opponent_id = m.id) AND d.status = 'done'
            WHERE m.active = 1 GROUP BY m.id ORDER BY wins DESC, losses ASC, m.name"""
+    ).fetchall()
+
+
+# --- dunk-o-meter ---------------------------------------------------------------------
+
+def add_dunk(member_id: int, biscuit_id: int, seconds: float, drink: str) -> None:
+    conn = get_db()
+    conn.execute("INSERT INTO dunks (member_id, biscuit_id, seconds, drink) VALUES (?, ?, ?, ?)",
+                 (member_id, biscuit_id, round(seconds, 2), drink))
+    conn.commit()
+
+
+def dunk_hall_of_fame(limit: int = 10) -> list[sqlite3.Row]:
+    return get_db().execute(
+        """SELECT k.*, m.name AS agent, m.avatar, b.name AS biscuit FROM dunks k
+           JOIN members m ON m.id = k.member_id JOIN biscuits b ON b.id = k.biscuit_id AND b.active = 1
+           ORDER BY k.seconds DESC LIMIT ?""", (limit,)
+    ).fetchall()
+
+
+def dunk_by_biscuit() -> list[sqlite3.Row]:
+    """Per biscuit: dunks logged, average and best survival time."""
+    return get_db().execute(
+        """SELECT b.id, b.name, COUNT(k.id) AS n, AVG(k.seconds) AS avg_s, MAX(k.seconds) AS best_s
+           FROM biscuits b JOIN dunks k ON k.biscuit_id = b.id WHERE b.active = 1
+           GROUP BY b.id ORDER BY avg_s DESC"""
     ).fetchall()
 
 

@@ -256,6 +256,50 @@ if (tinForm) {
 const revealEl = document.querySelector("[data-reveal]");
 if (revealEl && /rarity-(rare|epic|legendary)/.test(revealEl.className)) crumbShower();
 
+// Dunk-O-Meter: one button. DUNK starts the clock, SPLAT stops it and submits.
+const dunkForm = document.querySelector("[data-dunk-form]");
+if (dunkForm) {
+  const btn = dunkForm.querySelector("[data-dunk-btn]");
+  const display = dunkForm.querySelector("[data-dunk-display]");
+  const biscuitEl = dunkForm.querySelector("[data-dunk-biscuit]");
+  const panel = dunkForm.closest("[data-dunk]");
+  let started = 0, timer = 0;
+  const show = (s) => { display.firstChild.textContent = s.toFixed(1); };
+  btn.addEventListener("click", () => {
+    if (!dunkForm.reportValidity()) return;          // pick a biscuit first
+    if (!started) {
+      started = performance.now();
+      panel.classList.add("dunking");
+      btn.textContent = "💦 SPLAT!";
+      timer = setInterval(() => show((performance.now() - started) / 1000), 100);
+    } else {
+      const secs = (performance.now() - started) / 1000;
+      clearInterval(timer);
+      show(secs);
+      panel.classList.remove("dunking");
+      panel.classList.add("splat");
+      biscuitEl.textContent = "💥";
+      dunkForm.querySelector("[data-dunk-seconds]").value = secs.toFixed(2);
+      btn.disabled = true;
+      setTimeout(() => dunkForm.submit(), 700);
+    }
+  });
+}
+
+// Phone nav: if the tabs overflow, fade the edge (CSS) and bring the current tab into view.
+const navEl = document.querySelector(".nav");
+if (navEl) {
+  const mark = () => {
+    navEl.classList.toggle("scrolls", navEl.scrollWidth > navEl.clientWidth + 2);
+    navEl.classList.toggle("at-end", navEl.scrollLeft + navEl.clientWidth >= navEl.scrollWidth - 2);
+  };
+  const current = navEl.querySelector("[aria-current]");
+  if (current && navEl.scrollWidth > navEl.clientWidth) current.scrollIntoView({ inline: "center", block: "nearest" });
+  navEl.addEventListener("scroll", mark, { passive: true });
+  window.addEventListener("resize", mark);
+  mark();
+}
+
 // Admin: copy join links, and confirm destructive-ish actions.
 document.addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-copy]");

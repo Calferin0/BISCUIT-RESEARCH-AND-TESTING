@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Dunk-O-Meter{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('views.dashboard') }}">← Dashboard</a>
+<section class="hero">
+  <p class="eyebrow">Department of Fluid Dynamics</p>
+  <h1>⏱️ Dunk-O-Meter</h1>
+  <p class="lede">Pick a biscuit and a drink. Hit <strong>DUNK</strong> as it goes in. Hit <strong>SPLAT</strong> the moment it gives up.</p>
+</section>
+
+<section class="panel dunk-panel" data-dunk>
+  <form method="post" class="stack" data-dunk-form>
+    <div class="date-row">
+      <label class="field">Biscuit
+        <select name="biscuit_id" required>
+          <option value="">Choose the brave volunteer…</option>
+          {% for b in biscuits %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="field">Drink
+        <select name="drink">{% for k, label in drinks.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <input type="hidden" name="seconds" data-dunk-seconds>
+    <div class="dunk-display mono" data-dunk-display>0.0<span>s</span></div>
+    <div class="dunk-mug" aria-hidden="true"><span class="dunk-biscuit" data-dunk-biscuit>🍪</span><span class="dunk-tea"></span></div>
+    <button type="button" class="btn btn-wide dunk-btn" data-dunk-btn>🫖 DUNK!</button>
+    <noscript><label class="field">No JavaScript? Type the seconds: <input name="seconds" type="number" step="0.1" min="0.3" max="900"></label>
+      <button class="btn" type="submit">Log it</button></noscript>
+  </form>
+</section>
+
+{% if fame %}
+<h2 class="section-title">🏆 Hall of Fame: longest survivals</h2>
+<ol class="ranking panel points-ranking">
+  {% for d in fame %}
+  <li><span class="mono muted">{{ loop.index }}.</span>
+    <span class="rank-name">{{ d.biscuit }} <span class="muted small">· {{ d.avatar }} {{ d.agent }} · {{ drinks.get(d.drink, d.drink) }}</span></span>
+    <span class="score-num">{{ "%.1f" | format(d.seconds) }}s</span></li>
+  {% endfor %}
+</ol>
+{% endif %}
+
+{% if by_biscuit %}
+<h2 class="section-title">🧪 Lab results by biscuit</h2>
+<div class="panel table-scroll">
+  <table class="table">
+    <thead><tr><th>Biscuit</th><th>Dunks</th><th>Average</th><th>Best</th></tr></thead>
+    <tbody>{% for r in by_biscuit %}
+      <tr><td><a href="{{ url_for('views.biscuit', biscuit_id=r.id) }}">{{ r.name }}</a></td><td>{{ r.n }}</td>
+          <td class="mono">{{ "%.1f" | format(r.avg_s) }}s</td><td class="mono">{{ "%.1f" | format(r.best_s) }}s</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
