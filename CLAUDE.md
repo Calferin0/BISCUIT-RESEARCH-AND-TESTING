@@ -12,8 +12,9 @@ personal link on their phones and rate. Theme: a classified R&D dossier, with "a
 **Status (2026-11-05):** schema v3 (10 categories, photos, duplicate checks, awards night,
 suggestion box), blind rating, live presence, single-instance guard, Dry Land Purists,
 Soulmate/Nemesis, WORKING ON IT page, weekly loop scripts. 67 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
-Git: `github.com/CF-Motion-Impossible/BISCUIT-RESEARCH-AND-TESTING`, which is **public**, so
-nothing internal goes in it (see `.gitignore`).
+Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
+CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
+internal goes in it (see `.gitignore`).
 
 ## Decisions (no `00_Planner/` yet, so they live here)
 - **D1: code lives in this OneDrive folder, under git** (git added 2026-11-05 at CF's request).
