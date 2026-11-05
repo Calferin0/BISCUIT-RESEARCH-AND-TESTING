@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Biscuit Radar{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('views.dashboard') }}">← Dashboard</a>
+<section class="hero">
+  <p class="eyebrow">Surveillance division · range {{ radar_km }} km</p>
+  <h1>🛰️ Biscuit Radar</h1>
+  <p class="lede">Every shop around {{ site.label if site else "HQ" }}, plotted by distance and bearing, with biscuit prices spotted by the team. Prices wrong? Report the right one. The newest report wins.</p>
+</section>
+
+{% if not site %}
+<div class="empty panel"><p class="lede">The radar hasn't been switched on yet. The control room needs to set HQ's postcode.</p></div>
+{% else %}
+<div class="radar-wrap panel">
+  <svg class="radar" viewBox="-160 -160 320 320" role="img" aria-label="Radar of shops around {{ site.label }}">
+    <defs>
+      <radialGradient id="radar-bg"><stop offset="0" stop-color="#0f2a1c"/><stop offset="1" stop-color="#07140d"/></radialGradient>
+      <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3fbf74" stop-opacity="0"/><stop offset="1" stop-color="#3fbf74" stop-opacity=".45"/></linearGradient>
+    </defs>
+    <circle r="150" fill="url(#radar-bg)" stroke="#2c6b49"/>
+    {% for km in rings %}{% set r = km / radar_km * 140 %}
+    <circle r="{{ r }}" fill="none" stroke="#2c6b49" stroke-dasharray="{{ '0' if loop.last else '3 4' }}"/>
+    <text x="3" y="{{ -r + 10 }}" class="ring-label">{{ km }} km</text>
+    {% endfor %}
+    <line x1="-150" y1="0" x2="150" y2="0" stroke="#1f4d35"/><line x1="0" y1="-150" x2="0" y2="150" stroke="#1f4d35"/>
+    <text x="0" y="-152" class="ring-label" text-anchor="middle">N</text>
+    <g class="sweep"><path d="M0 0 L0 -150 A150 150 0 0 1 75 -129.9 Z" fill="url(#sweep)"/></g>
+    {% for s in shops %}
+    <a href="#shop-{{ s.id }}" class="blip-link">
+      <circle cx="{{ s.x }}" cy="{{ s.y }}" r="{{ 5 if s.prices else 3.5 }}" class="blip blip-{{ s.kind or 'added' }}{{ ' has-prices' if s.prices }}{{ ' outside' if s.outside }}">
+        <title>{{ s.name }} · {{ "%.1f" | format(s.km) }} km{% if s.prices %} · {{ s.prices | length }} price{{ 's' if s.prices | length != 1 }}{% endif %}</title>
+      </circle>
+    </a>
+    {% endfor %}
+    <text x="0" y="5" text-anchor="middle" class="hq">🏢</text>
+  </svg>
+  <p class="muted small radar-legend"><span class="dot dot-supermarket"></span> supermarket <span class="dot dot-convenience"></span> convenience <span class="dot dot-added"></span> added by agents · big dots have prices · tap a dot to jump to the shop</p>
+  <p class="muted small">Shop locations © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>.</p>
+</div>
+
+{% if cheapest %}
+<h2 class="section-title">💷 Cheapest spotted</h2>
+<div class="panel table-scroll">
+  <table class="table">
+    <thead><tr><th>Biscuit</th><th>Price</th><th>Where</th></tr></thead>
+    <tbody>
+      {% for name, c in cheapest %}
+      <tr><td>{{ name }}</td><td class="mono"><strong>{{ fmt(c.pence) }}</strong></td><td><a href="#shop-{{ c.shop_id }}">{{ c.shop }}</a> <span class="muted small">{{ "%.1f" | format(c.km) }} km</span></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2 class="section-title" id="prices">🏪 Shops by distance</h2>
+{% if not shops %}
+<div class="empty panel"><p class="lede">No shops on the radar yet. Add one below, or ask the control room to import them from OpenStreetMap.</p></div>
+{% endif %}
+<ul class="shop-list">
+  {% for s in shops %}
+  <li class="shop-row" id="shop-{{ s.id }}">
+    <div class="shop-row-head">
+      <strong>{{ s.name }}</strong>
+      <span class="muted small mono">{{ "%.1f" | format(s.km) }} km · ~{{ s.walk_min }} min walk</span>
+    </div>
+    {% if s.prices %}
+    <ul class="price-list">
+      {% for p in s.prices %}
+      <li><span>{{ p.biscuit }}{% if p.pack %} <span class="muted small">({{ p.pack }})</span>{% endif %}</span>
+          <strong class="mono">{{ fmt(p.pence) }}</strong>
+          <span class="muted small">{{ p.reporter or "?" }} · {{ p.created_at[:10] }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted small">No prices yet.</p>{% endif %}
+    <details class="price-form">
+      <summary>💷 Report a price here</summary>
+      <form method="post" action="{{ url_for('views.radar_price') }}" class="inline-form">
+        <input type="hidden" name="shop_id" value="{{ s.id }}">
+        <label class="field grow">Biscuit
+          <select name="biscuit_id" required>
+            <option value="">Pick a specimen…</option>
+            {% for b in biscuits %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field">Price <input name="price" required inputmode="decimal" placeholder="£1.20" size="6"></label>
+        <label class="field">Pack <small>optional</small> <input name="pack" maxlength="40" placeholder="300g" size="6"></label>
+        <button class="btn btn-small" type="submit">Log it</button>
+      </form>
+    </details>
+    <a class="btn btn-small btn-ghost" href="{{ s.maps }}" target="_blank" rel="noopener noreferrer">🧭 Open in Maps</a>
+  </li>
+  {% endfor %}
+</ul>
+
+<section class="panel narrow" id="add-shop">
+  <h2>➕ Add a shop</h2>
+  <p class="muted small">Missing a shop? Its postcode puts it on the radar. Postcodes are accurate to roughly 100 m, which is fine for a biscuit run.</p>
+  <form method="post" action="{{ url_for('views.radar_add_shop') }}" class="inline-form">
+    <label class="field grow">Shop name <input name="name" required maxlength="80" placeholder="e.g. Village Post Office"></label>
+    <label class="field">Postcode <input name="postcode" required maxlength="10" placeholder="BS37 4AB" size="9"></label>
+    <button class="btn btn-small" type="submit">Add</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

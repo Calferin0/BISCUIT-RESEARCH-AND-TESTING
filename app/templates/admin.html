@@ -97,6 +97,38 @@
 </section>
 {% endif %}
 
+<section class="panel" id="radar">
+  <h2>🛰️ Biscuit Radar</h2>
+  <p class="muted small">The centre is stored on this PC (<code>site.json</code> in the data folder), never in the public repo.</p>
+  <form method="post" action="{{ url_for('admin.radar_centre') }}" class="inline-form">
+    <label class="field">Label <input name="label" maxlength="60" value="{{ site.label if site else 'HQ' }}" size="10"></label>
+    <label class="field">Postcode <input name="postcode" required maxlength="10" value="{{ site.postcode if site else '' }}" size="9"></label>
+    <button class="btn btn-small" type="submit">{{ 'Move centre' if site else 'Set centre' }}</button>
+  </form>
+  {% if site %}
+  <p class="muted small mono">Centre: {{ site.label }} · {{ site.postcode }} · {{ "%.5f" | format(site.lat) }}, {{ "%.5f" | format(site.lng) }}</p>
+  <form method="post" action="{{ url_for('admin.radar_import') }}" data-confirm="Fetch supermarkets and convenience stores within 5 km from OpenStreetMap? Already-imported shops are skipped.">
+    <button class="btn btn-small btn-ghost" type="submit">⬇ Import shops from OpenStreetMap</button>
+  </form>
+  {% endif %}
+  {% if shops %}
+  <details class="gone"><summary><strong>Shops ({{ shops | length }})</strong></summary>
+    <div class="table-scroll">
+      <table class="table">
+        <tbody>
+          {% for s in shops %}
+          <tr{% if not s.active %} class="retired"{% endif %}>
+            <td>{{ s.name }}</td><td class="muted small">{{ s.kind }}{% if s.osm_ref %} · OSM{% endif %}</td>
+            <td><form method="post" action="{{ url_for('admin.toggle_shop', shop_id=s.id) }}"><button class="btn btn-small btn-ghost" type="submit">{{ 'Hide' if s.active else 'Restore' }}</button></form></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+</section>
+
 <section class="panel" id="drops">
   <h2>Biscuit drops <span class="muted">({{ drops | length }})</span></h2>
   {% if not drops %}<p class="muted">None yet. Agents log them from the Dashboard.</p>{% else %}

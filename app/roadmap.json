@@ -16,7 +16,8 @@
         "Closed cases for biscuits that leave the shops, plus reopen requests when they come back",
         "👍 on other agents' field reports. Funny ones will earn Biscuit Points",
         "🪙 Biscuit Points: earn for reports, proper field notes, thumbs-ups, new specimens, drops and suggestions. Tap your badge to see your tally and rank",
-        "🛍️ The Biscuit Shop: spend points on titles, name colours and avatar frames. Spending never lowers your rank"
+        "🛍️ The Biscuit Shop: spend points on titles, name colours and avatar frames. Spending never lowers your rank",
+        "🛰️ Biscuit Radar (Dashboard → Radar): shops around HQ by distance, team-reported prices, and the cheapest place for each biscuit"
       ]
     }
   ],
@@ -65,7 +66,7 @@
     },
     {
       "id": "price-map",
-      "status": "now",
+      "status": "done",
       "icon": "🗺️",
       "title": "Biscuit radius map",
       "blurb": "Shops near the office with biscuit prices that the team can add to and correct."

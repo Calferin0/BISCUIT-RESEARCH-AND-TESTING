@@ -9,7 +9,7 @@ from datetime import date
 from flask import (Blueprint, Response, abort, current_app, flash, redirect, render_template,
                    request, url_for)
 
-from . import db, images, scoring, util
+from . import db, images, radar, scoring, util
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -40,6 +40,8 @@ def index():
         new_suggestions=len(db.list_suggestions(None, ("new",))),
         drops=db.list_drops(include_hidden=True),
         reopen=db.pending_reopen_requests(),
+        site=radar.load_site(current_app.config["DATA_DIR"]),
+        shops=db.list_shops(include_hidden=True),
     )
 
 
@@ -59,6 +61,45 @@ def set_case(biscuit_id: int):
 def decline_reopen(request_id: int):
     db.decline_reopen_request(request_id)
     return redirect(url_for("admin.index") + "#reopen")
+
+
+@bp.post("/radar/centre")
+def radar_centre():
+    """Set the radar centre by postcode. Stored in the data dir, never in the (public) repo."""
+    try:
+        postcode = radar.normalise_postcode(request.form.get("postcode", ""))
+        lat, lng = radar.postcode_lookup(postcode)
+    except radar.RadarError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.index") + "#radar")
+    label = request.form.get("label", "").strip()[:60] or "HQ"
+    radar.save_site(current_app.config["DATA_DIR"], label, lat, lng, postcode)
+    flash(f"Radar centred on {label} ({postcode}).", "info")
+    return redirect(url_for("admin.index") + "#radar")
+
+
+@bp.post("/radar/import")
+def radar_import():
+    site = radar.load_site(current_app.config["DATA_DIR"])
+    if site is None:
+        flash("Set the radar centre first.", "error")
+        return redirect(url_for("admin.index") + "#radar")
+    try:
+        found = radar.overpass_shops(site["lat"], site["lng"])
+    except radar.RadarError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.index") + "#radar")
+    added = sum(1 for s in found if db.add_shop(s, None) is not None)
+    flash(f"OpenStreetMap: {len(found)} shops found within {radar.IMPORT_RADIUS_M // 1000} km, {added} new.", "info")
+    return redirect(url_for("admin.index") + "#radar")
+
+
+@bp.post("/shops/<int:shop_id>/toggle")
+def toggle_shop(shop_id: int):
+    if db.get_shop(shop_id) is None:
+        abort(404)
+    db.toggle_shop(shop_id)
+    return redirect(url_for("admin.index") + "#radar")
 
 
 @bp.post("/drops/<int:drop_id>/toggle")

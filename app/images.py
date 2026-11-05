@@ -59,10 +59,10 @@ def save(data: bytes, ext: str, upload_dir: Path) -> str:
     return name
 
 
-def _http_get(url: str) -> bytes:
+def _http_get(url: str, timeout: float = TIMEOUT_S) -> bytes:
     req = Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urlopen(req, timeout=TIMEOUT_S) as resp:
+        with urlopen(req, timeout=timeout) as resp:
             data = resp.read(MAX_DOWNLOAD + 1)  # bounded read: never trust Content-Length
     except HTTPError as e:
         # Reached the site but it said no: 429/503 mean "busy" (OFF rate-limits search).
@@ -76,10 +76,10 @@ def _http_get(url: str) -> bytes:
     return data
 
 
-def get_json(url: str):
-    """GET + JSON decode with the same UA, timeout and size limits as image fetches."""
+def get_json(url: str, timeout: float = TIMEOUT_S):
+    """GET + JSON decode with the same UA and size limits as image fetches."""
     try:
-        return json.loads(_http_get(url))
+        return json.loads(_http_get(url, timeout))
     except ValueError as e:
         raise PhotoError("That site sent back something unexpected.") from e
 

@@ -11,7 +11,7 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, url_for)
 
-from . import awards, cases, db, images, points, recommend, scoring, shop, similarity, util
+from . import awards, cases, db, images, points, radar, recommend, scoring, shop, similarity, util
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -50,6 +50,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.dashboard": "Checking the dashboard",
         "views.points_page": "Counting their Biscuit Points",
         "views.shop_page": "Browsing the Biscuit Shop",
+        "views.radar_page": "Scanning the Biscuit Radar",
         "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
     }.get(endpoint)
@@ -130,6 +131,9 @@ def biscuit(biscuit_id: int):
         cats=db.category_averages(biscuit_id) if visible else {},
         votes=db.report_votes(biscuit_id, g.member["id"]) if visible else {},
         reopen_pending=db.reopen_request_count(biscuit_id),
+        cheapest=min((p for p in db.current_prices() if p["biscuit_id"] == biscuit_id),
+                     key=lambda p: p["pence"], default=None),
+        fmt_price=radar.fmt_price,
     )
 
 
@@ -411,6 +415,75 @@ def shop_equip(slot: str):
             abort(400)
     db.equip(g.member["id"], slot, item_key or None)
     return redirect(url_for("views.shop_page") + f"#{slot}")
+
+
+def _radar_shops(site: dict) -> list[dict]:
+    """Active shops with distance, bearing, radar position and their current prices, nearest first."""
+    prices: dict[int, list] = {}
+    for p in db.current_prices():
+        prices.setdefault(p["shop_id"], []).append(p)
+    out = []
+    for s in db.list_shops():
+        km = radar.distance_km(site["lat"], site["lng"], s["lat"], s["lng"])
+        x, y = radar.radar_xy(km, radar.bearing_deg(site["lat"], site["lng"], s["lat"], s["lng"]))
+        out.append({**dict(s), "km": km, "walk_min": round(km * radar.WALK_MIN_PER_KM), "x": x, "y": y,
+                    "outside": km > radar.RADAR_KM, "prices": prices.get(s["id"], []),
+                    "maps": radar.maps_url(s["lat"], s["lng"])})
+    return sorted(out, key=lambda s: s["km"])
+
+
+@bp.get("/radar")
+@agent_required
+def radar_page():
+    site = radar.load_site(current_app.config["DATA_DIR"])
+    shops = _radar_shops(site) if site else []
+    cheapest: dict[str, dict] = {}
+    for s in shops:
+        for p in s["prices"]:
+            if p["biscuit"] not in cheapest or p["pence"] < cheapest[p["biscuit"]]["pence"]:
+                cheapest[p["biscuit"]] = {"pence": p["pence"], "shop": s["name"], "km": s["km"], "shop_id": s["id"]}
+    return render_template("radar.html", site=site, shops=shops, rings=radar.RINGS_KM, radar_km=radar.RADAR_KM,
+                           cheapest=sorted(cheapest.items()), fmt=radar.fmt_price,
+                           biscuits=[b for b in db.list_biscuits(None) if b["active"]])
+
+
+@bp.post("/radar/price")
+@agent_required
+def radar_price():
+    back = redirect(url_for("views.radar_page") + "#prices")
+    try:
+        shop_id, biscuit_id = int(request.form.get("shop_id", 0)), int(request.form.get("biscuit_id", 0))
+        pence = radar.parse_price(request.form.get("price", ""))
+    except ValueError as e:  # RadarError is a ValueError; so is a non-numeric id
+        flash(str(e) if isinstance(e, radar.RadarError) else "Pick a shop and a biscuit.", "error")
+        return back
+    shop_row, b = db.get_shop(shop_id), db.get_biscuit(biscuit_id)
+    if shop_row is None or not shop_row["active"] or b is None or not b["active"]:
+        flash("Pick a shop and a biscuit from the lists.", "error")
+        return back
+    db.add_price(shop_id, biscuit_id, pence, request.form.get("pack", "").strip()[:40], g.member["id"])
+    flash(f"Logged: {b['name']} at {shop_row['name']} for {radar.fmt_price(pence)}. Intel received. 💷", "celebrate")
+    return redirect(url_for("views.radar_page") + f"#shop-{shop_id}")
+
+
+@bp.post("/radar/shop")
+@agent_required
+def radar_add_shop():
+    back = redirect(url_for("views.radar_page") + "#add-shop")
+    name = request.form.get("name", "").strip()[:80]
+    if not name:
+        flash("A shop needs a name.", "error")
+        return back
+    try:
+        postcode = radar.normalise_postcode(request.form.get("postcode", ""))
+        lat, lng = radar.postcode_lookup(postcode)
+    except radar.RadarError as e:
+        flash(str(e), "error")
+        return back
+    shop_id = db.add_shop({"name": name, "lat": lat, "lng": lng, "postcode": postcode, "kind": "added"},
+                          g.member["id"])
+    flash(f"{name} is on the radar. 🛰️", "celebrate")
+    return redirect(url_for("views.radar_page") + f"#shop-{shop_id}")
 
 
 SUGGESTION_MAX = 1000

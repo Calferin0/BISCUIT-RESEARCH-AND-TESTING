@@ -418,6 +418,34 @@ a.agent-badge:hover { border-color: var(--accent); color: var(--ink); }
 .shop-actions { margin-top: auto; padding-top: 8px; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 
+/* --- biscuit radar ---------------------------------------------------------------------- */
+.radar-wrap { text-align: center; }
+.radar { width: 100%; max-width: 420px; height: auto; }
+.radar .ring-label { fill: #4f9c72; font: 700 8px var(--mono); }
+.radar .hq { font-size: 14px; }
+.radar .sweep { transform-origin: 0 0; animation: radar-sweep 4s linear infinite; }
+@keyframes radar-sweep { to { transform: rotate(360deg); } }
+.blip { fill: #8ef05b; stroke: #07140d; stroke-width: 1; }
+.blip-supermarket { fill: #3ad6ff; }
+.blip-convenience { fill: #ffd23f; }
+.blip-added { fill: #ff5fa2; }
+.blip.has-prices { stroke: #fff; stroke-width: 1.5; }
+.blip.outside { opacity: .45; }
+.blip-link:hover .blip, .blip-link:focus .blip { stroke: var(--accent); stroke-width: 2.5; }
+.radar-legend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 10px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.dot-supermarket { background: #3ad6ff; } .dot-convenience { background: #ffd23f; } .dot-added { background: #ff5fa2; }
+.shop-list { list-style: none; padding: 0; margin: 10px 0 20px; display: grid; gap: 10px; }
+.shop-row { padding: 12px 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); scroll-margin-top: 130px; }
+.shop-row:target { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.shop-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.price-list { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 4px; }
+.price-list li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; align-items: baseline; }
+.price-list li > .muted { grid-column: 1 / -1; }
+.price-form { margin: 8px 0; }
+.price-form summary { cursor: pointer; font-weight: 650; color: var(--accent); }
+.price-form .inline-form { margin-top: 8px; }
+
 /* --- admin: live presence ---------------------------------------------------------------- */
 .live-panel h2 { display: flex; align-items: center; gap: 8px; }
 .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgb(63 191 116 / .6); animation: pulse 2s infinite; }

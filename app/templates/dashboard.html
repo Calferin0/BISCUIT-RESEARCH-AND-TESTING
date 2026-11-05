@@ -32,6 +32,11 @@
   {% else %}
   <p class="lede">You're fully up to date. Time to go biscuit hunting.</p>
   {% endif %}
+  <nav class="jump" aria-label="Dashboard tools">
+    <a href="{{ url_for('views.radar_page') }}">🛰️ Biscuit Radar: shops and prices</a>
+    <a href="{{ url_for('views.points_page') }}">🪙 Points</a>
+    <a href="{{ url_for('views.shop_page') }}">🛍️ Shop</a>
+  </nav>
 </section>
 
 {% if picks %}

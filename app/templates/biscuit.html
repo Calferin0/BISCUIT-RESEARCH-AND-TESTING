@@ -15,6 +15,8 @@
     <h1>{{ b.name }}</h1>
     {% if b.brand %}<p class="muted">{{ b.brand }}</p>{% endif %}
     {% if closed %}<p><span class="tag tag-closed">🗄️ Case closed · no longer in shops</span></p>{% endif %}
+    {% if cheapest %}<p class="small">💷 Cheapest spotted: <strong>{{ fmt_price(cheapest.pence) }}</strong> at
+      <a href="{{ url_for('views.radar_page') }}#shop-{{ cheapest.shop_id }}">the radar's best shop</a>{% if cheapest.pack %} ({{ cheapest.pack }}){% endif %}</p>{% endif %}
 
     {% if not show_results %}
     <div class="sealed">

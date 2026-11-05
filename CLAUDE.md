@@ -9,9 +9,10 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-05):** schema v4 (10 categories, photos, duplicate checks, awards night,
-suggestion box, biscuit drops), blind rating, live presence, single-instance guard, Dry Land
-Purists, Soulmate/Nemesis, WORKING ON IT page, weekly loop scripts, Dashboard. 91 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
+**Status (2026-11-05, end of day):** schema v7. Everything on the original roadmap is built:
+dashboard and drops, case lifecycle, reopen requests, thumbs-up, Biscuit Points and shop, Biscuit
+Radar. 124 tests pass. Live BRT was deployed at 16:27 (schema v5: up to points earning); the
+shop and radar are pushed but **not yet deployed** to the live app. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
 internal goes in it (see `.gitignore`).
@@ -85,7 +86,15 @@ internal goes in it (see `.gitignore`).
   **Ranks use lifetime earned**, so shopping never demotes. Cosmetics are agent flair (CF's
   pick): title, name colour, avatar frame (`app/shop.py` catalogue; item keys are permanent).
   The `_agent.html` macro renders flair wherever an agent's name appears.
-- **Next build:** the roadmap's "later" items (`app/roadmap.json`).
+- **D18: Biscuit Radar** (schema v7, `app/radar.py`, `/radar`). An SVG radar, not a tile map
+  (no CDN, no tile-usage limits, works offline). **The centre lives in `DATA_DIR/site.json`, never
+  in the repo** (public repo; it's where everyone works). Set it via the control room by postcode
+  (postcodes.io). Shops come from an OpenStreetMap Overpass import (admin, deduped on `osm_ref`)
+  or are added by agents by postcode. Prices are team-reported with full history; the newest
+  per (shop, biscuit) is current. Overpass is slow and often "at capacity" (502), both seen
+  2026-11-05 [MEASURED], hence a 45 s timeout and mirror fallback. **A live OSM import was NOT
+  verified end to end** (all mirrors busy at the time); the import path is tested with a mock.
+- **Next build:** suggestions from the weekly loop (`WEEKLY.md`).
 
 ## Architecture
 - `app/__init__.py`: `create_app()` resolves the data dir, loads the agent from the cookie into

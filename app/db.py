@@ -19,7 +19,7 @@ from . import similarity
 from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -136,6 +136,33 @@ CREATE TABLE IF NOT EXISTS equipped (
     item_key  TEXT    NOT NULL,
     PRIMARY KEY (member_id, slot)
 ) WITHOUT ROWID;
+
+-- v7: Biscuit Radar. Shops from OpenStreetMap (osm_ref) or added by agents (by postcode).
+CREATE TABLE IF NOT EXISTS shops (
+    id         INTEGER PRIMARY KEY,
+    osm_ref    TEXT    UNIQUE,                       -- 'node/123' / 'way/456'; NULL if agent-added
+    name       TEXT    NOT NULL,
+    brand      TEXT    NOT NULL DEFAULT '',
+    kind       TEXT    NOT NULL DEFAULT '',          -- supermarket | convenience | ...
+    lat        REAL    NOT NULL,
+    lng        REAL    NOT NULL,
+    postcode   TEXT    NOT NULL DEFAULT '',
+    added_by   INTEGER REFERENCES members(id),
+    active     INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+-- Every price report is kept (history). The latest per (shop, biscuit) is the current price,
+-- so "correcting" a price is just reporting a newer one.
+CREATE TABLE IF NOT EXISTS prices (
+    id         INTEGER PRIMARY KEY,
+    shop_id    INTEGER NOT NULL REFERENCES shops(id),
+    biscuit_id INTEGER NOT NULL REFERENCES biscuits(id),
+    pence      INTEGER NOT NULL CHECK (pence BETWEEN 1 AND 10000),
+    pack       TEXT    NOT NULL DEFAULT '',
+    member_id  INTEGER REFERENCES members(id),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_prices_lookup ON prices(shop_id, biscuit_id, id);
 """
 
 # v4 -> v5 adds columns to an existing table, which CREATE TABLE IF NOT EXISTS can't do.
@@ -670,6 +697,60 @@ def equipped_items() -> dict[int, list[str]]:
     for r in get_db().execute("SELECT member_id, item_key FROM equipped"):
         out.setdefault(r["member_id"], []).append(r["item_key"])
     return out
+
+
+# --- radar: shops and prices -------------------------------------------------------------
+
+def list_shops(include_hidden: bool = False) -> list[sqlite3.Row]:
+    return get_db().execute("SELECT * FROM shops WHERE active = 1 OR ? ORDER BY name COLLATE NOCASE",
+                            (int(include_hidden),)).fetchall()
+
+
+def get_shop(shop_id: int) -> sqlite3.Row | None:
+    return get_db().execute("SELECT * FROM shops WHERE id = ?", (shop_id,)).fetchone()
+
+
+def add_shop(shop: dict, member_id: int | None) -> int | None:
+    """Insert a shop; returns its id, or None if that OpenStreetMap ref is already imported."""
+    conn = get_db()
+    try:
+        with conn:
+            cur = conn.execute(
+                """INSERT INTO shops (osm_ref, name, brand, kind, lat, lng, postcode, added_by)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (shop.get("osm_ref"), shop["name"], shop.get("brand", ""), shop.get("kind", ""),
+                 shop["lat"], shop["lng"], shop.get("postcode", ""), member_id),
+            )
+        return cur.lastrowid
+    except sqlite3.IntegrityError:
+        return None
+
+
+def toggle_shop(shop_id: int) -> None:
+    conn = get_db()
+    conn.execute("UPDATE shops SET active = 1 - active WHERE id = ?", (shop_id,))
+    conn.commit()
+
+
+def add_price(shop_id: int, biscuit_id: int, pence: int, pack: str, member_id: int) -> None:
+    conn = get_db()
+    conn.execute("INSERT INTO prices (shop_id, biscuit_id, pence, pack, member_id) VALUES (?, ?, ?, ?, ?)",
+                 (shop_id, biscuit_id, pence, pack, member_id))
+    conn.commit()
+
+
+def current_prices() -> list[sqlite3.Row]:
+    """The latest report per (shop, biscuit), for active shops and biscuits."""
+    return get_db().execute(
+        """SELECT p.*, b.name AS biscuit, m.name AS reporter
+           FROM prices p
+           JOIN biscuits b ON b.id = p.biscuit_id AND b.active = 1
+           JOIN shops s ON s.id = p.shop_id AND s.active = 1
+           LEFT JOIN members m ON m.id = p.member_id
+           WHERE p.id = (SELECT MAX(p2.id) FROM prices p2
+                         WHERE p2.shop_id = p.shop_id AND p2.biscuit_id = p.biscuit_id)
+           ORDER BY b.name COLLATE NOCASE, p.pence"""
+    ).fetchall()
 
 
 # --- drops ------------------------------------------------------------------------------
