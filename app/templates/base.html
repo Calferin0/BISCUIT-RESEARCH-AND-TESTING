@@ -27,7 +27,18 @@
     <span class="brand-text"><strong>BRT</strong><small>Biscuit Research &amp; Testing</small></span>
   </a>
   {% if me %}
-  <a class="agent-badge" href="{{ url_for('views.points_page') }}" title="Agent {{ me.name }}: {{ my_points }} Biscuit Points">{{ me.avatar }}<span class="agent-name"> Agent {{ me.name }}</span> <span class="points-pill">🪙 {{ my_points }}</span></a>
+  {#- Your badge wears your Locker: framed avatar, coloured name, title. Name -> Locker, coins -> Points. -#}
+  {% set my_flair = flair.get(me.id, {}) %}
+  <div class="agent-badge">
+    <a class="badge-me" href="{{ url_for('views.locker') }}" title="Your Locker: change your look">
+      <span class="avatar-frame badge-avatar{% if my_flair.frame %} frame-{{ my_flair.frame }}{% endif %}" aria-hidden="true">{{ me.avatar }}</span>
+      <span class="badge-text">
+        <span class="badge-name agent-name-text{% if my_flair.color %} name-{{ my_flair.color }}{% endif %}">{{ me.name }}</span>
+        {% if my_flair.title %}<span class="badge-title">{{ my_flair.title }}</span>{% endif %}
+      </span>
+    </a>
+    <a class="points-pill" href="{{ url_for('views.points_page') }}" title="{{ my_points }} Biscuit Points">🪙 {{ my_points }}</a>
+  </div>
   <nav class="nav" aria-label="Main">
     <a href="{{ url_for('views.dashboard') }}"{% if request.endpoint in ('views.dashboard', 'views.edit_drop') %} aria-current="page"{% endif %}><span class="wide-only">Dashboard</span><span class="narrow-only">Dash</span></a>
     <a href="{{ url_for('views.index') }}"{% if request.endpoint == 'views.index' %} aria-current="page"{% endif %}>Specimens</a>

@@ -87,6 +87,16 @@ def test_rarity_reset(app, client, agent_token, biscuit_id):
     assert count(app, "SELECT COUNT(*) FROM rarity_votes") == 0
 
 
+def test_top_bar_badge_wears_your_flair(app, rich):
+    page = rich.get("/").data.decode()
+    assert 'class="badge-me" href="/locker"' in page and 'href="/points"' in page
+    rich.post("/shop/buy/title-dunkinator")                          # buying equips it
+    header = rich.get("/").data.decode().split("</header>")[0]
+    assert 'class="badge-title">the Dunkinator<' in header
+    rich.post("/locker/equip/title", data={"item_key": ""})
+    assert "badge-title" not in rich.get("/").data.decode().split("</header>")[0]
+
+
 def test_locker_shows_inventory_equips_and_avatar(app, rich, monkeypatch):
     rich.post("/shop/buy/color-custard")
     monkeypatch.setattr(loot, "roll_tier", lambda rng: "legendary")

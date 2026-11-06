@@ -82,10 +82,19 @@ code { font-family: var(--mono); }
 @keyframes wobble { 0%, 90%, 100% { transform: rotate(0); } 93% { transform: rotate(-18deg); } 96% { transform: rotate(14deg); } }
 .brand-text strong { display: block; font: 900 1.2rem/1 var(--sans); letter-spacing: .14em; }
 .brand-text small { font: .62rem/1.3 var(--mono); color: var(--muted); letter-spacing: .14em; text-transform: uppercase; }
+/* Top-bar badge: wears your Locker (framed avatar, coloured name, title) + points. */
 .agent-badge {
-  font: .75rem/1 var(--mono); color: var(--muted);
-  background: var(--panel); border: 1px solid var(--line); padding: 6px 10px; border-radius: 99px;
+  display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 60%;
+  background: var(--panel); border: 1px solid var(--line); padding: 4px 6px 4px 4px; border-radius: 99px;
 }
+.badge-me { display: flex; align-items: center; gap: 7px; min-width: 0; text-decoration: none; color: var(--ink); border-radius: 99px; }
+.badge-me:hover .badge-name { text-decoration: underline; }
+.badge-avatar { width: 30px; height: 30px; font-size: 1.05rem; background-color: var(--bg); flex: none; }
+.badge-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.badge-name { font: 800 .82rem/1.15 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge-title { font: italic 600 .66rem/1.15 var(--sans); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent-badge .points-pill { flex: none; padding: 5px 8px; border-radius: 99px; background: var(--bg); font: 700 .75rem/1 var(--mono); text-decoration: none; }
+.agent-badge .points-pill:hover { outline: 1px solid #ffd23f; }
 .nav { display: flex; align-items: center; gap: 4px; }
 .nav a:not(.btn) { color: var(--muted); text-decoration: none; padding: 7px 10px; border-radius: 9px; font-weight: 650; }
 .nav a:not(.btn):hover { color: var(--ink); }
@@ -93,7 +102,7 @@ code { font-family: var(--mono); }
 .nav .btn { white-space: nowrap; }
 .narrow-only { display: none; }
 @media (max-width: 640px) {
-  .agent-name { display: none; }
+  .agent-badge { max-width: 55vw; }
   .nav { width: 100%; justify-content: space-between; }
 }
 @media (max-width: 640px) {
@@ -103,6 +112,10 @@ code { font-family: var(--mono); }
   .nav a { flex: none; }
 }
 @media (max-width: 420px) {
+  /* Room for the flair badge on the logo's row: the subtitle goes, the logo shrinks a touch. */
+  .brand-text small { display: none; }
+  .brand-mark { font-size: 1.6rem; }
+  .agent-badge { max-width: 68vw; }
   .wide-only { display: none; }
   .narrow-only { display: inline; }
   .nav { gap: 0; }
@@ -388,8 +401,6 @@ blockquote { margin: 10px 0 0; padding: 0 0 0 12px; border-left: 3px solid var(-
 .row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 
 /* --- biscuit points --------------------------------------------------------------------- */
-a.agent-badge { text-decoration: none; }
-a.agent-badge:hover { border-color: var(--accent); color: var(--ink); }
 .points-pill { color: #ffd23f; font-weight: 700; }
 .points-big { font: 900 1.6rem/1 var(--mono); color: #ffd23f; }
 .points-table td:nth-child(2), .points-table td:nth-child(3) { text-align: right; white-space: nowrap; }
