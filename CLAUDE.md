@@ -9,9 +9,10 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-06):** live BRT is on schema v9, deployed 09:09: everything through the
-control-room powers (feature switches, point grants, removals), the Locker and the points-page
-balance fix. 156 tests pass. Backup before the upgrade: `brt.v8-backup.sqlite3`. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
+**Status (2026-11-06):** live BRT is on schema v9 and current with `main`: everything through
+the control-room powers, the Locker, the points-page balance fix and the top-bar flair badge
+(last deploy 2026-11-06). 158 tests pass. **Deploys need CF's explicit OK each time**: the auto-mode
+classifier blocks unapproved production deploys. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
 internal goes in it (see `.gitignore`).
