@@ -31,8 +31,8 @@
   <nav class="nav" aria-label="Main">
     <a href="{{ url_for('views.dashboard') }}"{% if request.endpoint in ('views.dashboard', 'views.edit_drop') %} aria-current="page"{% endif %}><span class="wide-only">Dashboard</span><span class="narrow-only">Dash</span></a>
     <a href="{{ url_for('views.index') }}"{% if request.endpoint == 'views.index' %} aria-current="page"{% endif %}>Specimens</a>
-    <a href="{{ url_for('views.radar_page') }}"{% if request.endpoint == 'views.radar_page' %} aria-current="page"{% endif %}>Radar</a>
-    <a href="{{ url_for('views.arena') }}"{% if request.endpoint in ('views.arena', 'views.duel_page') %} aria-current="page"{% endif %}>VS</a>
+    {% if feature_on.radar %}<a href="{{ url_for('views.radar_page') }}"{% if request.endpoint == 'views.radar_page' %} aria-current="page"{% endif %}>Radar</a>{% endif %}
+    {% if feature_on.vs %}<a href="{{ url_for('views.arena') }}"{% if request.endpoint in ('views.arena', 'views.duel_page') %} aria-current="page"{% endif %}>VS</a>{% endif %}
     <a href="{{ url_for('views.leaderboard') }}"{% if request.endpoint == 'views.leaderboard' %} aria-current="page"{% endif %}><span class="wide-only">Leaderboard</span><span class="narrow-only">Board</span></a>
     <a href="{{ url_for('views.suggestions') }}"{% if request.endpoint in ('views.suggestions', 'views.working_on_it') %} aria-current="page"{% endif %}>Ideas</a>
     <a class="btn btn-small" href="{{ url_for('views.add_biscuit') }}" aria-label="Log a new specimen">+ <span class="wide-only">Specimen</span><span class="narrow-only">Add</span></a>
@@ -58,7 +58,8 @@
 </footer>
 
 {#- The E-STOP: one press swaps BRT for a fake "work" screen. Esc or another press brings it back.
-    While active, the button fades to near-invisible until hovered. -#}
+    While active, the button fades to near-invisible until hovered. The control room can switch it off. -#}
+{% if feature_on.get('estop', True) %}
 <div class="stealth" data-stealth hidden>
   <img alt="" data-stealth-img hidden>
   <div class="stealth-fallback" data-stealth-fallback hidden>
@@ -99,6 +100,7 @@ Program Size: Code=48212 RO-data=3120 RW-data=412 ZI-data=20836
           aria-pressed="false" aria-label="Work mode: hide BRT behind a work screen (Esc to exit)" title="WORK MODE (Esc to exit)">E-STOP</button>
   <span class="estop-legend" aria-hidden="true">WORK MODE</span>
 </div>
+{% endif %}
 
 </body>
 </html>

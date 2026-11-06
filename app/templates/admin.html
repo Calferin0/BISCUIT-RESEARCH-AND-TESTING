@@ -10,9 +10,48 @@
     <a class="btn btn-small btn-ghost" href="{{ url_for('admin.export_csv') }}">⬇ Export all ratings (CSV)</a>
     <a class="btn btn-small btn-ghost" href="{{ url_for('admin.suggestions') }}">📮 Suggestions{% if new_suggestions %} ({{ new_suggestions }} new){% endif %}</a>
   </p>
+  <nav class="jump admin-jump" aria-label="Control room sections">
+    <a href="#live">🟢 Live</a><a href="#features">🎛️ Features</a><a href="#points">🪙 Points</a>
+    <a href="#agents">🕵️ Agents</a><a href="#biscuits">🍪 Specimens</a><a href="#prices">💷 Prices</a>
+    <a href="#radar">🛰️ Radar</a><a href="#drops">📅 Drops</a><a href="#dunks">⏱️ Dunks</a><a href="#duels">⚔️ Duels</a>
+  </nav>
 </section>
 
-<section class="panel live-panel" data-live-panel data-live-url="{{ url_for('admin.api_live') }}">
+<section class="panel" id="features">
+  <h2>🎛️ Feature switches</h2>
+  <p class="muted small">Untick to switch something off for everyone. It disappears from the nav and its pages close. Nothing is deleted, so ticking it again brings everything back exactly as it was.</p>
+  <form method="post" action="{{ url_for('admin.set_features') }}">
+    <ul class="switch-list">
+      {% for key, (icon, label, blurb) in features.items() %}
+      <li><label class="switch"><input type="checkbox" name="on" value="{{ key }}"{% if feature_state[key] %} checked{% endif %}>
+        <span class="switch-track" aria-hidden="true"></span>
+        <span><strong>{{ icon }} {{ label }}</strong><small class="muted"> · {{ blurb }}</small></span></label></li>
+      {% endfor %}
+    </ul>
+    <button class="btn btn-small" type="submit">Save switches</button>
+  </form>
+</section>
+
+<section class="panel" id="points">
+  <h2>🪙 Hand out points</h2>
+  <p class="muted small">Bonuses (or penalties: use a minus number). The agent sees the reason on their points page. Capped at ±{{ grant_limit }} per grant.</p>
+  <form method="post" action="{{ url_for('admin.grant_points') }}" class="inline-form">
+    <label class="field">Agent
+      <select name="member_id" required><option value="">Who?</option>
+        {% for m in members if m.active %}<option value="{{ m.id }}">{{ m.avatar }} {{ m.name }}</option>{% endfor %}
+      </select></label>
+    <label class="field">Points <input type="number" name="amount" required min="-{{ grant_limit }}" max="{{ grant_limit }}" value="25" size="5"></label>
+    <label class="field grow">Reason <input name="reason" maxlength="80" placeholder="e.g. Brought in homemade shortbread"></label>
+    <button class="btn btn-small" type="submit">🎖️ Award</button>
+  </form>
+  {% if grants %}
+  <ul class="grant-list">
+    {% for gr in grants %}<li><span class="mono {{ 'plus' if gr.delta > 0 else 'minus' }}">{{ '+' if gr.delta > 0 }}{{ gr.delta }}</span> {{ gr.agent }} <span class="muted small">· {{ gr.reason }} · {{ gr.created_at[:16] }}</span></li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+<section class="panel live-panel" id="live" data-live-panel data-live-url="{{ url_for('admin.api_live') }}">
   <h2><span class="live-dot" aria-hidden="true"></span> Live now <span class="muted" data-live-count>({{ live | length }})</span></h2>
   <p class="muted small" data-live-summary>
     {%- if not live %}Nobody's on BRT right now. Safe to shut down.
@@ -43,7 +82,7 @@
   </form>
 </section>
 
-<section class="panel">
+<section class="panel" id="agents">
   <h2>Agents <span class="muted">({{ members | length }})</span></h2>
   {% if not members %}<p class="muted">No agents yet. Recruit someone above. (Add yourself too, so you can rate.)</p>{% endif %}
   <ul class="agent-list">
@@ -196,6 +235,69 @@
       </tbody>
     </table>
   </div>
+  {% endif %}
+</section>
+
+<section class="panel" id="prices">
+  <h2>💷 Price reports <span class="muted">(latest {{ all_prices | length }})</span></h2>
+  {% if not all_prices %}<p class="muted">No prices reported yet.</p>{% else %}
+  <div class="table-scroll"><table class="table">
+    <thead><tr><th>Biscuit</th><th>Shop</th><th>Price</th><th>By</th><th></th></tr></thead>
+    <tbody>{% for p in all_prices %}
+      <tr{% if not p.active %} class="retired"{% endif %}>
+        <td><a href="{{ url_for('admin.edit_biscuit', biscuit_id=p.biscuit_id) }}#prices">{{ p.biscuit }}</a></td>
+        <td class="small">{{ p.shop }}</td>
+        <td class="mono">{{ fmt_price(p.pence) }}{% if p.pack %} <span class="muted small">{{ p.pack }}</span>{% endif %}</td>
+        <td class="muted small">{{ p.reporter or "?" }} · {{ p.created_at[:10] }}</td>
+        <td><form method="post" action="{{ url_for('admin.edit_price', price_id=p.id) }}">
+          <input type="hidden" name="action" value="toggle"><input type="hidden" name="back" value="list">
+          <input type="hidden" name="biscuit_id" value="{{ p.biscuit_id }}">
+          <button class="btn btn-small btn-ghost" type="submit">{{ 'Retract' if p.active else 'Restore' }}</button></form></td>
+      </tr>{% endfor %}
+    </tbody></table></div>
+  {% endif %}
+</section>
+
+<section class="panel" id="dunks">
+  <h2>⏱️ Dunk-O-Meter records <span class="muted">(latest {{ dunks | length }})</span></h2>
+  <p class="muted small">Remove silly or accidental records. They drop off the Hall of Fame, and you can restore them.</p>
+  {% if not dunks %}<p class="muted">No dunks logged yet.</p>{% else %}
+  <div class="table-scroll"><table class="table">
+    <thead><tr><th>Biscuit</th><th>Time</th><th>By</th><th></th></tr></thead>
+    <tbody>{% for k in dunks %}
+      <tr{% if not k.active %} class="retired"{% endif %}>
+        <td>{{ k.biscuit }} <span class="muted small">{{ k.drink }}</span></td>
+        <td class="mono">{{ "%.1f" | format(k.seconds) }}s</td>
+        <td class="muted small">{{ k.agent }} · {{ k.created_at[:16] }}</td>
+        <td><form method="post" action="{{ url_for('admin.toggle_dunk', dunk_id=k.id) }}">
+          <button class="btn btn-small btn-ghost" type="submit">{{ 'Remove' if k.active else 'Restore' }}</button></form></td>
+      </tr>{% endfor %}
+    </tbody></table></div>
+  {% endif %}
+</section>
+
+<section class="panel" id="duels">
+  <h2>⚔️ Duels and biscuit debts</h2>
+  {% if not open_duels and not ious %}<p class="muted">No open duels or unpaid biscuit debts.</p>{% endif %}
+  {% if open_duels %}
+  <h3 class="sub-title">Open duels</h3>
+  <ul class="suggestion-list">{% for d in open_duels %}
+    <li class="suggestion"><div class="suggestion-head">
+      <strong>#{{ d.id }} {{ d.challenger }} vs {{ d.opponent }}</strong>
+      <span class="muted small">{{ d.status }} · {{ d.wager }} pts each{% if d.biscuit_iou %} · 🍪 IOU{% endif %} · {{ d.created_at[:10] }}</span></div>
+      <form method="post" action="{{ url_for('admin.void_duel', duel_id=d.id) }}" data-confirm="Void duel #{{ d.id }}? Any stakes held are refunded.">
+        <button class="btn btn-small btn-ghost" type="submit">🚫 Void and refund</button></form></li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if ious %}
+  <h3 class="sub-title">Unpaid biscuit debts</h3>
+  <ul class="suggestion-list">{% for d in ious %}{% set loser = d.opponent if d.winner_id == d.challenger_id else d.challenger %}
+    <li class="suggestion"><div class="suggestion-head"><strong>🍪 {{ loser }} owes {{ d.winner }}</strong><span class="muted small">duel #{{ d.id }}</span></div>
+      <div class="row-actions" style="justify-content:flex-start">
+        <form method="post" action="{{ url_for('admin.settle_iou', duel_id=d.id) }}"><input type="hidden" name="action" value="paid"><button class="btn btn-small" type="submit">✅ Mark paid</button></form>
+        <form method="post" action="{{ url_for('admin.settle_iou', duel_id=d.id) }}"><input type="hidden" name="action" value="void"><button class="btn btn-small btn-ghost" type="submit">🕊️ Forgive</button></form>
+      </div></li>{% endfor %}
+  </ul>
   {% endif %}
 </section>
 {% endblock %}

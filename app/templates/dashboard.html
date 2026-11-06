@@ -33,13 +33,15 @@
   <p class="lede">You're fully up to date. Time to go biscuit hunting.</p>
   {% endif %}
   <nav class="jump" aria-label="Dashboard tools">
-    <a href="{{ url_for('views.dunk_page') }}">⏱️ Dunk-O-Meter</a>
-    <a href="{{ url_for('views.loot_page') }}">🎁 Mystery Tins</a>
+    {% if feature_on.dunk %}<a href="{{ url_for('views.dunk_page') }}">⏱️ Dunk-O-Meter</a>{% endif %}
+    {% if feature_on.loot %}<a href="{{ url_for('views.loot_page') }}">🎁 Mystery Tins</a>{% endif %}
     <a href="{{ url_for('views.points_page') }}">🪙 Points</a>
-    <a href="{{ url_for('views.shop_page') }}">🛍️ Shop</a>
+    {% if feature_on.shop %}<a href="{{ url_for('views.shop_page') }}">🛍️ Shop</a>{% endif %}
+    <a href="{{ url_for('views.locker') }}">🎒 Locker</a>
   </nav>
 </section>
 
+{% if feature_on.horoscope %}
 <div class="daily-row">
   {% if botd %}
   <a class="botd" href="{{ url_for('views.biscuit', biscuit_id=botd.id) }}">
@@ -53,6 +55,7 @@
     <p>{{ horoscope }}</p>
   </div>
 </div>
+{% endif %}
 
 {% if picks %}
 <h2 class="section-title">🎯 Your next tasting</h2>

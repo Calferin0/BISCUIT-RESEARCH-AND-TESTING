@@ -9,7 +9,7 @@ from datetime import date
 from flask import (Blueprint, Response, abort, current_app, flash, redirect, render_template,
                    request, url_for)
 
-from . import db, images, radar, rarity, scoring, util
+from . import db, features, images, radar, rarity, scoring, util
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -42,6 +42,12 @@ def index():
         reopen=db.pending_reopen_requests(),
         site=radar.load_site(current_app.config["DATA_DIR"]),
         shops=db.list_shops(include_hidden=True),
+        features=features.FEATURES, feature_state=features.enabled_map(),
+        grants=db.admin_grants(), grant_limit=GRANT_LIMIT,
+        all_prices=db.all_prices(), fmt_price=radar.fmt_price, dunks=db.all_dunks(),
+        open_duels=[d for d in db.list_duels(None, 200) if d["status"] in ("pending", "active")],
+        ious=[d for d in db.list_duels(None, 200) if d["status"] == "done" and d["biscuit_iou"]
+              and d["winner_id"] and not d["iou_paid"]],
     )
 
 
@@ -82,7 +88,63 @@ def edit_price(price_id: int):
                             request.form.get("pack", "").strip()[:40])
         except radar.RadarError as e:
             flash(str(e), "error")
+    if request.form.get("back") == "list":
+        return redirect(url_for("admin.index") + "#prices")
     return redirect(url_for("admin.edit_biscuit", biscuit_id=biscuit_id) + "#prices")
+
+
+# --- control-room powers --------------------------------------------------------------
+
+GRANT_LIMIT = 1000
+
+
+@bp.post("/features")
+def set_features():
+    """Feature switches: every box posted = on, unticked = off."""
+    on = set(request.form.getlist("on"))
+    for key in features.FEATURES:
+        db.set_setting(f"feature.{key}", "1" if key in on else "0")
+    flash("Feature switches saved.", "info")
+    return redirect(url_for("admin.index") + "#features")
+
+
+@bp.post("/points")
+def grant_points():
+    """Hand out (or dock) points. Goes through the ledger, so the agent sees it on their points page."""
+    m = db.get_member(request.form.get("member_id", type=int) or 0)
+    amount = request.form.get("amount", type=int)
+    reason = request.form.get("reason", "").strip()[:80] or "Control room bonus"
+    if m is None or amount is None or amount == 0 or abs(amount) > GRANT_LIMIT:
+        flash(f"Pick an agent and an amount between -{GRANT_LIMIT} and {GRANT_LIMIT} (not 0).", "error")
+    else:
+        db.ledger_add(m["id"], amount, f"🎖️ {reason}", "admin")
+        flash(f"{'+' if amount > 0 else ''}{amount} points to {m['name']}: {reason}", "celebrate")
+    return redirect(url_for("admin.index") + "#points")
+
+
+@bp.post("/dunks/<int:dunk_id>/toggle")
+def toggle_dunk(dunk_id: int):
+    db.toggle_dunk(dunk_id)
+    return redirect(url_for("admin.index") + "#dunks")
+
+
+@bp.post("/duels/<int:duel_id>/void")
+def void_duel(duel_id: int):
+    flash("Duel voided, stakes refunded." if db.void_duel(duel_id) else "That duel is already over.", "info")
+    return redirect(url_for("admin.index") + "#duels")
+
+
+@bp.post("/duels/<int:duel_id>/iou")
+def settle_iou(duel_id: int):
+    db.set_iou(duel_id, 1 if request.form.get("action") == "paid" else 2)
+    return redirect(url_for("admin.index") + "#duels")
+
+
+@bp.post("/biscuits/<int:biscuit_id>/rarity-reset")
+def reset_rarity(biscuit_id: int):
+    db.clear_rarity_votes(biscuit_id)
+    flash("Rarity votes cleared.", "info")
+    return redirect(url_for("admin.edit_biscuit", biscuit_id=biscuit_id))
 
 
 @bp.post("/shops/<int:shop_id>/rename")

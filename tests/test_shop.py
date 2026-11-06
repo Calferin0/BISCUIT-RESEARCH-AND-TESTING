@@ -39,7 +39,8 @@ def test_buy_equip_and_balance(app, rich):
 def test_rank_uses_earned_not_balance(app, rich):
     rich.post("/shop/buy/color-jaffa")                         # spend 40 of 60
     page = rich.get("/points").data.decode()
-    assert "Junior Taster" in page and "earned 60 · spent 40" in page
+    assert "Junior Taster" in page and "earned 60 · shop −40" in page
+    assert 'class="points-big">20<' in page
 
 
 def test_equip_rules(app, rich):

@@ -11,8 +11,8 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, session, url_for)
 
-from . import (awards, cases, db, duel, fun, images, loot, points, radar, rarity, recommend, scoring, shop,
-               similarity, util)
+from . import (awards, cases, db, duel, features, fun, images, loot, points, radar, rarity, recommend, scoring,
+               shop, similarity, util)
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -56,6 +56,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.duel_page": "Mid-duel ⚔️",
         "views.loot_page": "Shaking a Mystery Tin",
         "views.dunk_page": "Timing a dunk ⏱️",
+        "views.locker": "Admiring themselves in the Locker 🪞",
         "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
     }.get(endpoint)
@@ -430,15 +431,20 @@ def points_page():
     # Ranks use lifetime *earned* points, so shopping never demotes anyone.
     table = sorted(({**dict(a), "points": points.total(a)} for a in db.points_activity()),
                    key=lambda a: (-a["points"], a["name"].lower()))
-    mine = next((a for a in db.points_activity(g.member["id"])), None)
+    me_id = g.member["id"]
+    mine = next((a for a in db.points_activity(me_id)), None)
     earned = points.total(mine) if mine else 0
+    # The balance must use the same one definition as everywhere else (views.balance): earned -
+    # shop spend + ledger. This page used to skip the ledger, so Mystery Tins didn't show here.
     return render_template("points.html", table=table, rules=points.RULES, rank=points.rank,
                            breakdown=points.breakdown(mine) if mine else [], earned=earned,
-                           spent=db.points_spent(g.member["id"]), next_rank=points.next_rank(earned))
+                           spent=db.points_spent(me_id), ledger=db.ledger_total(me_id), balance=balance(me_id),
+                           movements=db.recent_ledger(me_id, 15), next_rank=points.next_rank(earned))
 
 
 @bp.get("/shop")
 @agent_required
+@features.required("shop")
 def shop_page():
     me_id = g.member["id"]
     equipped = shop.flair_for(db.equipped_items().get(me_id, []))
@@ -449,6 +455,7 @@ def shop_page():
 
 @bp.post("/shop/buy/<item_key>")
 @agent_required
+@features.required("shop")
 def shop_buy(item_key: str):
     item = shop.BY_KEY.get(item_key)
     if item is None or item.loot_tier is not None:  # loot-only items can't be bought
@@ -465,6 +472,7 @@ def shop_buy(item_key: str):
 
 @bp.route("/loot", methods=["GET", "POST"])
 @agent_required
+@features.required("loot")
 def loot_page():
     me_id = g.member["id"]
     if request.method == "POST":
@@ -489,6 +497,48 @@ def loot_page():
                            owned=owned)
 
 
+# --- Locker: your look + inventory -------------------------------------------------------
+# Deliberately NOT behind the "shop" switch: what you own stays yours to wear.
+
+@bp.get("/locker")
+@agent_required
+def locker():
+    me_id = g.member["id"]
+    owned = db.inventory(me_id)
+    equipped = set(db.equipped_items().get(me_id, []))
+    items = [{"item": shop.BY_KEY[o["item_key"]], "source": o["source"], "when": o["created_at"],
+              "on": o["item_key"] in equipped} for o in owned if o["item_key"] in shop.BY_KEY]
+    by_slot = {slot: [i for i in items if i["item"].slot == slot] for slot in shop.SLOTS}
+    return render_template("locker.html", by_slot=by_slot, slots=shop.SLOTS, avatars=scoring.AVATARS,
+                           total=len(items), loot_count=sum(1 for i in items if i["source"] == "loot"),
+                           catalogue_size=len(shop.CATALOGUE))
+
+
+@bp.post("/locker/equip/<slot>")
+@agent_required
+def locker_equip(slot: str):
+    if slot not in shop.SLOTS:
+        abort(404)
+    key = request.form.get("item_key", "")
+    if key:
+        item = shop.BY_KEY.get(key)
+        if item is None or item.slot != slot or key not in db.owned_items(g.member["id"]):
+            abort(400)
+    db.equip(g.member["id"], slot, key or None)
+    return redirect(url_for("views.locker") + f"#{slot}")
+
+
+@bp.post("/locker/avatar")
+@agent_required
+def locker_avatar():
+    avatar = request.form.get("avatar", "")
+    if avatar not in scoring.AVATARS:
+        abort(400)
+    db.update_member(g.member["id"], g.member["name"], avatar)
+    flash(f"New look: {avatar}. Very distinguished.", "celebrate")
+    return redirect(url_for("views.locker"))
+
+
 # --- Dunk-O-Meter ----------------------------------------------------------------------
 
 DRINKS = {"tea": "🫖 Tea", "coffee": "☕ Coffee", "hot-choc": "🍫 Hot chocolate", "milk": "🥛 Milk"}
@@ -496,6 +546,7 @@ DRINKS = {"tea": "🫖 Tea", "coffee": "☕ Coffee", "hot-choc": "🍫 Hot choco
 
 @bp.route("/dunk", methods=["GET", "POST"])
 @agent_required
+@features.required("dunk")
 def dunk_page():
     if request.method == "POST":
         b = db.get_biscuit(request.form.get("biscuit_id", type=int) or 0)
@@ -528,6 +579,7 @@ def _duel_or_404(duel_id: int):
 
 @bp.get("/arena")
 @agent_required
+@features.required("vs")
 def arena():
     me_id = g.member["id"]
     mine = db.list_duels(me_id)
@@ -545,6 +597,7 @@ def arena():
 
 @bp.post("/arena/challenge")
 @agent_required
+@features.required("vs")
 def challenge():
     me_id = g.member["id"]
     back = redirect(url_for("views.arena"))
@@ -566,6 +619,7 @@ def challenge():
 
 @bp.get("/duel/<int:duel_id>")
 @agent_required
+@features.required("vs")
 def duel_page(duel_id: int):
     d = _duel_or_404(duel_id)
     st = duel.build_state(d["challenger_id"], d["opponent_id"], db.duel_moves(duel_id))
@@ -577,6 +631,7 @@ def duel_page(duel_id: int):
 
 @bp.post("/duel/<int:duel_id>/<action>")
 @agent_required
+@features.required("vs")
 def duel_action(duel_id: int, action: str):
     d = _duel_or_404(duel_id)
     me_id = g.member["id"]
@@ -619,6 +674,7 @@ def duel_action(duel_id: int, action: str):
 
 @bp.post("/shop/equip/<slot>")
 @agent_required
+@features.required("shop")
 def shop_equip(slot: str):
     if slot not in shop.SLOTS:
         abort(404)
@@ -648,6 +704,7 @@ def _radar_shops(site: dict) -> list[dict]:
 
 @bp.get("/radar")
 @agent_required
+@features.required("radar")
 def radar_page():
     site = radar.load_site(current_app.config["DATA_DIR"])
     shops = _radar_shops(site) if site else []
@@ -663,6 +720,7 @@ def radar_page():
 
 @bp.post("/radar/price")
 @agent_required
+@features.required("radar")
 def radar_price():
     back = redirect(url_for("views.radar_page") + "#prices")
     try:
@@ -682,6 +740,7 @@ def radar_price():
 
 @bp.post("/radar/shop")
 @agent_required
+@features.required("radar")
 def radar_add_shop():
     back = redirect(url_for("views.radar_page") + "#add-shop")
     name = request.form.get("name", "").strip()[:80]

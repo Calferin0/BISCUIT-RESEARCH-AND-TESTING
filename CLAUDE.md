@@ -119,6 +119,16 @@ internal goes in it (see `.gitignore`).
   team-reported. Don't invent them.
 - Fun extras: Biscuit of the Day and horoscope (`app/fun.py`, seeded by date, no storage) and the
   Dunk-O-Meter (`dunks` table, `/dunk`).
+- **D24: control room powers** (schema v9). Feature switches (`app/features.py`, `settings`
+  table, `feature.<key>` = 1/0, missing = on) hide a feature from the nav and close its routes
+  via `@features.required`. Data is never touched. Admin points grants go through the ledger
+  (`ref = 'admin'`, ±1000 cap) and show on the agent's points page. Admin can soft-remove dunks,
+  retract prices, void duels (refunding held stakes), mark biscuit IOUs paid or forgiven
+  (`iou_paid` 1 or 2) and reset rarity votes.
+- **Locker** (`/locker`): your look (avatar + equipped flair), avatar picker and inventory
+  (shop + loot, by source). **Deliberately not behind the shop switch**: what you own stays wearable.
+- **Every balance display must use `views.balance`.** The points page once computed its own
+  (earned − shop) and missed the ledger, so Mystery Tins didn't show (CF report, 2026-11-06).
 - **Next build:** suggestions from the weekly loop (`WEEKLY.md`).
 
 ## Architecture

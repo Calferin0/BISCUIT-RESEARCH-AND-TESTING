@@ -19,7 +19,7 @@ from . import similarity
 from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -217,8 +217,15 @@ CREATE TABLE IF NOT EXISTS dunks (
     biscuit_id INTEGER NOT NULL REFERENCES biscuits(id),
     seconds    REAL    NOT NULL CHECK (seconds > 0 AND seconds <= 900),
     drink      TEXT    NOT NULL DEFAULT 'tea',
-    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    active     INTEGER NOT NULL DEFAULT 1           -- v9: admin can remove a silly record
 );
+
+-- v9: control-room settings (feature switches). key -> value as text.
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+) WITHOUT ROWID;
 """
 
 # v4 -> v5 adds columns to an existing table, which CREATE TABLE IF NOT EXISTS can't do.
@@ -229,6 +236,7 @@ ADDED_COLUMNS = {
     "prices": (("active", "INTEGER NOT NULL DEFAULT 1"),),                       # v8
     "purchases": (("source", "TEXT NOT NULL DEFAULT 'shop'"),),                  # v8: shop | loot
     "drops": (("biscuit_id", "INTEGER"),),                                       # v8: explicit specimen link
+    "dunks": (("active", "INTEGER NOT NULL DEFAULT 1"),),                        # v9: admin removal
 }
 
 
@@ -721,6 +729,12 @@ def points_spent(member_id: int) -> int:
                             (member_id,)).fetchone()[0]
 
 
+def inventory(member_id: int) -> list[sqlite3.Row]:
+    """Everything this agent owns, with where it came from (shop | loot) and when."""
+    return get_db().execute("SELECT item_key, source, cost, created_at FROM purchases WHERE member_id = ? ORDER BY id",
+                            (member_id,)).fetchall()
+
+
 def owned_items(member_id: int) -> set[str]:
     return {r[0] for r in get_db().execute("SELECT item_key FROM purchases WHERE member_id = ?", (member_id,))}
 
@@ -872,6 +886,7 @@ def dunk_hall_of_fame(limit: int = 10) -> list[sqlite3.Row]:
     return get_db().execute(
         """SELECT k.*, m.name AS agent, m.avatar, b.name AS biscuit FROM dunks k
            JOIN members m ON m.id = k.member_id JOIN biscuits b ON b.id = k.biscuit_id AND b.active = 1
+           WHERE k.active = 1
            ORDER BY k.seconds DESC LIMIT ?""", (limit,)
     ).fetchall()
 
@@ -880,9 +895,80 @@ def dunk_by_biscuit() -> list[sqlite3.Row]:
     """Per biscuit: dunks logged, average and best survival time."""
     return get_db().execute(
         """SELECT b.id, b.name, COUNT(k.id) AS n, AVG(k.seconds) AS avg_s, MAX(k.seconds) AS best_s
-           FROM biscuits b JOIN dunks k ON k.biscuit_id = b.id WHERE b.active = 1
+           FROM biscuits b JOIN dunks k ON k.biscuit_id = b.id AND k.active = 1 WHERE b.active = 1
            GROUP BY b.id ORDER BY avg_s DESC"""
     ).fetchall()
+
+
+# --- control room -----------------------------------------------------------------------
+
+def get_settings() -> dict[str, str]:
+    return {r["key"]: r["value"] for r in get_db().execute("SELECT key, value FROM settings")}
+
+
+def set_setting(key: str, value: str) -> None:
+    conn = get_db()
+    with conn:
+        conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) "
+                     "ON CONFLICT (key) DO UPDATE SET value = excluded.value", (key, value))
+
+
+def all_dunks(limit: int = 60) -> list[sqlite3.Row]:
+    return get_db().execute(
+        """SELECT k.*, m.name AS agent, b.name AS biscuit FROM dunks k
+           JOIN members m ON m.id = k.member_id JOIN biscuits b ON b.id = k.biscuit_id
+           ORDER BY k.id DESC LIMIT ?""", (limit,)
+    ).fetchall()
+
+
+def toggle_dunk(dunk_id: int) -> None:
+    conn = get_db()
+    conn.execute("UPDATE dunks SET active = 1 - active WHERE id = ?", (dunk_id,))
+    conn.commit()
+
+
+def all_prices(limit: int = 80) -> list[sqlite3.Row]:
+    return get_db().execute(
+        """SELECT p.*, s.name AS shop, b.name AS biscuit, m.name AS reporter FROM prices p
+           JOIN shops s ON s.id = p.shop_id JOIN biscuits b ON b.id = p.biscuit_id
+           LEFT JOIN members m ON m.id = p.member_id ORDER BY p.id DESC LIMIT ?""", (limit,)
+    ).fetchall()
+
+
+def admin_grants(limit: int = 30) -> list[sqlite3.Row]:
+    return get_db().execute(
+        """SELECT l.*, m.name AS agent FROM ledger l JOIN members m ON m.id = l.member_id
+           WHERE l.ref = 'admin' ORDER BY l.id DESC LIMIT ?""", (limit,)
+    ).fetchall()
+
+
+def clear_rarity_votes(biscuit_id: int) -> None:
+    conn = get_db()
+    conn.execute("DELETE FROM rarity_votes WHERE biscuit_id = ?", (biscuit_id,))
+    conn.commit()
+
+
+def void_duel(duel_id: int) -> bool:
+    """Admin: call off a pending or active duel and refund every stake that was held."""
+    conn = get_db()
+    with conn:
+        d = conn.execute("SELECT * FROM duels WHERE id = ? AND status IN ('pending', 'active')", (duel_id,)).fetchone()
+        if d is None:
+            return False
+        conn.execute("UPDATE duels SET status = 'cancelled', finished_at = datetime('now') WHERE id = ?", (duel_id,))
+        if d["wager"]:
+            ref = f"duel/{duel_id}"
+            ledger_add(d["challenger_id"], d["wager"], "Duel voided by control room: stake back", ref, conn)
+            if d["status"] == "active":  # the opponent's stake was only held once they accepted
+                ledger_add(d["opponent_id"], d["wager"], "Duel voided by control room: stake back", ref, conn)
+    return True
+
+
+def set_iou(duel_id: int, paid: int) -> None:
+    """Admin: 1 = mark paid, 2 = void (forgiven)."""
+    conn = get_db()
+    conn.execute("UPDATE duels SET iou_paid = ? WHERE id = ? AND biscuit_iou = 1", (paid, duel_id))
+    conn.commit()
 
 
 def recent_ledger(member_id: int, limit: int = 12) -> list[sqlite3.Row]:

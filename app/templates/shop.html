@@ -8,7 +8,10 @@
   <h1>🛍️ The Biscuit Shop</h1>
   <p class="lede">Balance: <strong class="points-big">🪙 {{ balance }}</strong>. Spending never lowers your rank. Ranks count everything you've ever earned.</p>
   <p class="shop-preview">You appear as: {{ agent(me.id, me.name, me.avatar) }}</p>
-  <p><a class="btn" href="{{ url_for('views.loot_page') }}">🎁 Feeling lucky? Mystery Tins</a></p>
+  <p class="jump">
+    {% if feature_on.loot %}<a href="{{ url_for('views.loot_page') }}">🎁 Feeling lucky? Mystery Tins</a>{% endif %}
+    <a href="{{ url_for('views.locker') }}">🎒 Your Locker</a>
+  </p>
 </section>
 
 {% for slot, label in slots.items() %}

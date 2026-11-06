@@ -17,6 +17,9 @@
     <p class="muted small">Votes: {% for t in tiers %}{{ t.icon }} {{ counts[t.key] }} {% endfor %}</p>
     <button class="btn btn-wide" type="submit">Save specimen</button>
   </form>
+  <form method="post" action="{{ url_for('admin.reset_rarity', biscuit_id=b.id) }}" data-confirm="Clear every rarity vote for {{ b.name }}?" style="margin-top:8px">
+    <button class="btn btn-small btn-ghost" type="submit">🧹 Reset rarity votes</button>
+  </form>
   <p class="jump" style="margin-top:14px">
     <a href="{{ url_for('admin.biscuit_photo', biscuit_id=b.id) }}">📸 Photo</a>
     <a href="{{ url_for('views.biscuit', biscuit_id=b.id) }}">📂 Case file</a>

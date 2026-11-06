@@ -5,10 +5,13 @@
 <section class="hero">
   <p class="eyebrow">Department of Rewards</p>
   <h1>🪙 Biscuit Points</h1>
-  <p class="lede">Balance <strong class="points-big">{{ earned - spent }}</strong>
-    <span class="muted small mono">(earned {{ earned }} · spent {{ spent }})</span><br>
+  <p class="lede">Balance <strong class="points-big">{{ balance }}</strong>
+    <span class="muted small mono">(earned {{ earned }} · shop −{{ spent }} · tins, duels &amp; bonuses {{ '+' if ledger > 0 }}{{ ledger }})</span><br>
     Rank: <strong>{{ rank(earned) }}</strong>.{% if next_rank %} {{ next_rank[1] }} more to <strong>{{ next_rank[0] }}</strong>.{% endif %}</p>
-  <p><a class="btn" href="{{ url_for('views.shop_page') }}">🛍️ Visit the Biscuit Shop</a></p>
+  <p class="jump">
+    {% if feature_on.shop %}<a href="{{ url_for('views.shop_page') }}">🛍️ Biscuit Shop</a>{% endif %}
+    <a href="{{ url_for('views.locker') }}">🎒 Your Locker</a>
+  </p>
 </section>
 
 <section class="panel">
@@ -27,6 +30,15 @@
   </table>
   <p class="muted small">Funny or useful field notes get 👍 from other agents, and every 👍 is worth {{ (rules | selectattr("key", "equalto", "thumbs") | first).points }} points to you.</p>
 </section>
+
+{% if movements %}
+<section class="panel">
+  <h2>🧾 Recent ins and outs</h2>
+  <ul class="grant-list">
+    {% for mv in movements %}<li><span class="mono {{ 'plus' if mv.delta > 0 else 'minus' }}">{{ '+' if mv.delta > 0 }}{{ mv.delta }}</span> {{ mv.reason }} <span class="muted small">· {{ mv.created_at[:16] }}</span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 <h2 class="section-title">🏆 Points table <span class="muted small">(lifetime earned)</span></h2>
 <ol class="ranking panel points-ranking">

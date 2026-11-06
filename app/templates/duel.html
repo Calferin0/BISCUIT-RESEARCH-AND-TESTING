@@ -43,7 +43,8 @@
   {% elif d.status == 'done' %}
     <p class="vs-result">{% if d.winner_id %}🏆 <strong>{{ d.challenger if d.winner_id == d.challenger_id else d.opponent }}</strong> wins{% if d.wager %} the {{ 2 * d.wager }}-point pot{% endif %}!{% else %}🤝 A draw. Stakes returned.{% endif %}</p>
     {% if d.biscuit_iou and d.winner_id %}
-      {% if d.iou_paid %}<p class="muted">🍪 Biscuit debt paid in full. Honour restored.</p>
+      {% if d.iou_paid == 2 %}<p class="muted">🕊️ The control room forgave this biscuit debt. Lucky.</p>
+      {% elif d.iou_paid %}<p class="muted">🍪 Biscuit debt paid in full. Honour restored.</p>
       {% else %}
         <p>🍪 <strong>{{ d.opponent if d.winner_id == d.challenger_id else d.challenger }}</strong> owes a packet of biscuits.</p>
         {% if me.id == d.winner_id %}<form method="post" action="{{ url_for('views.duel_action', duel_id=d.id, action='paid') }}">

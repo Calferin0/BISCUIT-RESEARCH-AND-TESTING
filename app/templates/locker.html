@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
+{% block title %}Your Locker{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Agent wardrobe · {{ total }} of {{ catalogue_size }} items collected{% if loot_count %} · {{ loot_count }} from Mystery Tins{% endif %}</p>
+  <h1>🎒 Your Locker</h1>
+  <nav class="jump" aria-label="Locker">
+    {% if feature_on.shop %}<a href="{{ url_for('views.shop_page') }}">🛍️ Shop</a>{% endif %}
+    {% if feature_on.loot %}<a href="{{ url_for('views.loot_page') }}">🎁 Mystery Tins</a>{% endif %}
+    <a href="{{ url_for('views.points_page') }}">🪙 Points</a>
+  </nav>
+</section>
+
+{% set f = flair.get(me.id, {}) %}
+<section class="panel look-panel">
+  <p class="eyebrow">🪞 Your look</p>
+  <div class="mirror">
+    <span class="avatar-frame big{% if f.frame %} frame-{{ f.frame }}{% endif %}" aria-hidden="true">{{ me.avatar }}</span>
+    <div>
+      <p class="mirror-name">{{ agent(me.id, me.name, me.avatar) }}</p>
+      <p class="muted small">This is how you appear on reports, leaderboards and duels.</p>
+      <ul class="slot-summary">
+        {% for slot, label in slots.items() %}
+        {% set on = (by_slot[slot] | selectattr("on") | first) %}
+        <li><span class="muted small">{{ label }}</span> <strong>{{ on.item.name if on else "—" }}</strong></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <details class="avatar-picker">
+    <summary><strong>🔄 Change your avatar</strong></summary>
+    <form method="post" action="{{ url_for('views.locker_avatar') }}" class="avatar-grid">
+      {% for a in avatars %}
+      <button type="submit" name="avatar" value="{{ a }}" class="avatar-choice{{ ' chosen' if a == me.avatar }}" title="Use {{ a }}">{{ a }}</button>
+      {% endfor %}
+    </form>
+  </details>
+</section>
+
+<h2 class="section-title">🧳 Inventory</h2>
+{% if not total %}
+<div class="empty panel"><p class="lede">Your locker echoes. Earn points by filing reports, then hit the
+  {% if feature_on.shop %}<a href="{{ url_for('views.shop_page') }}">Shop</a>{% else %}Shop{% endif %} or
+  {% if feature_on.loot %}<a href="{{ url_for('views.loot_page') }}">a Mystery Tin</a>{% else %}a Mystery Tin{% endif %}.</p></div>
+{% endif %}
+{% for slot, label in slots.items() %}{% if by_slot[slot] %}
+<h3 class="sub-title" id="{{ slot }}">{{ label }}</h3>
+<ul class="shop-grid">
+  {% for i in by_slot[slot] %}{% set item = i.item %}
+  <li class="shop-item owned{{ ' equipped' if i.on }}{% if item.loot_tier %} rarity-{{ item.loot_tier }}{% endif %}">
+    <div class="shop-sample">
+      {%- if slot == 'title' -%}<span class="agent-name-text">Agent {{ me.name }}</span><span class="agent-title">, {{ item.value }}</span>
+      {%- elif slot == 'color' -%}<span class="agent-name-text name-{{ item.value }}">Agent {{ me.name }}</span>
+      {%- else -%}<span class="avatar-frame frame-{{ item.value }}">{{ me.avatar }}</span>{%- endif -%}
+    </div>
+    <strong>{{ item.name }}</strong>
+    <p class="small">
+      {%- if i.source == 'loot' %}<span class="rarity-badge inline rarity-{{ item.loot_tier }}">🎁 {{ item.loot_tier }} loot</span>
+      {%- else %}<span class="muted">🛍️ bought for {{ item.cost }} pts</span>{% endif %}
+      <span class="muted"> · {{ i.when[:10] }}</span></p>
+    <form method="post" action="{{ url_for('views.locker_equip', slot=slot) }}" class="shop-actions">
+      <input type="hidden" name="item_key" value="{{ '' if i.on else item.key }}">
+      <button class="btn btn-small{{ ' btn-ghost' if i.on }}" type="submit">{{ '✓ Wearing · take off' if i.on else 'Wear it' }}</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}{% endfor %}
+{% endblock %}
