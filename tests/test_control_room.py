@@ -97,6 +97,16 @@ def test_top_bar_badge_wears_your_flair(app, rich):
     assert "badge-title" not in rich.get("/").data.decode().split("</header>")[0]
 
 
+def test_top_bar_name_takes_loot_colour(app, client, agent_token):
+    """CF's case: a pink loot colour (Pink Wafer) must colour the name in the top bar."""
+    with app.app_context():
+        brtdb.get_db().execute("INSERT INTO purchases (member_id, item_key, cost, source) VALUES (1, 'loot-color-wafer', 0, 'loot')")
+        brtdb.get_db().commit()
+    client.post("/locker/equip/color", data={"item_key": "loot-color-wafer"})
+    header = client.get("/").data.decode().split("</header>")[0]
+    assert 'class="badge-name agent-name-text name-wafer"' in header
+
+
 def test_locker_shows_inventory_equips_and_avatar(app, rich, monkeypatch):
     rich.post("/shop/buy/color-custard")
     monkeypatch.setattr(loot, "roll_tier", lambda rng: "legendary")
