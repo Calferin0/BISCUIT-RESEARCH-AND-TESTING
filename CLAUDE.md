@@ -9,9 +9,9 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-05, evening):** live BRT is on schema v7 (deployed 17:17: up to the Biscuit
-Radar). Pushed but **NOT yet deployed** (schema v8): rarity votes, admin edit pages, Radar tab,
-drop de-dupe, Mystery Tins, Biscuit VS duels, Biscuit of the Day, Dunk-O-Meter. 148 tests pass. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
+**Status (2026-11-06):** live BRT is on schema v8, deployed 08:48 with everything through
+rarity votes, admin edit pages, Radar tab, drop de-dupe, Mystery Tins, Biscuit VS duels,
+Biscuit of the Day and Dunk-O-Meter. 148 tests pass. Backup before the upgrade: `brt.v7-backup.sqlite3`. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
 internal goes in it (see `.gitignore`).
