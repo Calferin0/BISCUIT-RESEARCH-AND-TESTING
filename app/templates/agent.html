@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
+{% block title %}Agent {{ m.name }}{% endblock %}
+{% block content %}
+{% set f = flair.get(m.id, {}) %}
+<section class="hero">
+  <p class="eyebrow">Personnel file · agent profile{% if is_me %} · this is you{% endif %}</p>
+  <div class="profile-head">
+    <span class="avatar-frame{% if f.frame %} frame-{{ f.frame }}{% endif %}" aria-hidden="true">{{ m.avatar }}</span>
+    <div>
+      <h1><span class="agent-name-text{% if f.color %} name-{{ f.color }}{% endif %}">Agent {{ m.name }}</span></h1>
+      <p class="muted">{% if f.title %}<em>{{ f.title }}</em> · {% endif %}Rank: <strong>{{ rank }}</strong></p>
+    </div>
+  </div>
+  {% if is_me %}<p class="small"><a href="{{ url_for('views.locker') }}">Change your look in the Locker →</a></p>{% endif %}
+
+  {% if activity %}
+  <ul class="profile-stats">
+    <li><b>{{ activity.reports }}</b><span>📝 field reports</span></li>
+    <li><b>{{ activity.specimens }}</b><span>🔬 specimens logged</span></li>
+    <li><b>{{ activity.thumbs }}</b><span>👍 thumbs-ups received</span></li>
+    <li><b>{{ activity.shipped }}/{{ activity.suggestions }}</b><span>🚀 ideas shipped</span></li>
+    {% if duels %}<li><b>{{ duels.wins }}–{{ duels.losses }}{% if duels.draws %}–{{ duels.draws }}{% endif %}</b><span>⚔️ duel record</span></li>{% endif %}
+    {% if feature_on.get('court', True) %}<li><b>{{ court_rec.raised }} · {{ court_rec.faced }}</b><span>⚖️ objections raised · faced</span></li>{% endif %}
+  </ul>
+  {% endif %}
+</section>
+
+<h2 class="section-title">🎒 Collection <span class="muted">({{ collection | length }})</span></h2>
+{% if collection %}
+<ul class="shop-grid">
+  {% for i in collection %}{% set item = i.item %}
+  <li class="shop-item owned{{ ' equipped' if i.on }}{% if item.loot_tier %} rarity-{{ item.loot_tier }}{% endif %}">
+    <div class="shop-sample">
+      {%- if item.slot == 'title' -%}<span class="agent-name-text">Agent {{ m.name }}</span><span class="agent-title">, {{ item.value }}</span>
+      {%- elif item.slot == 'color' -%}<span class="agent-name-text name-{{ item.value }}">Agent {{ m.name }}</span>
+      {%- else -%}<span class="avatar-frame frame-{{ item.value }}">{{ m.avatar }}</span>{%- endif -%}
+    </div>
+    <strong>{{ item.name }}</strong>
+    <p class="small muted">{{ slots[item.slot] }}{% if i.source == 'loot' %} · 🎁 {{ item.loot_tier }} loot{% endif %}{% if i.on %} · ✓ wearing{% endif %}</p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty panel"><p class="lede">No flair yet. A blank canvas, or a minimalist.</p></div>
+{% endif %}
+
+<h2 class="section-title">📝 Recent field reports</h2>
+{% if reports %}
+<ul class="profile-reports">
+  {% for r in reports %}
+  <li>
+    <a href="{{ url_for('views.biscuit', biscuit_id=r.biscuit_id) }}"><strong>{{ r.biscuit_name }}</strong></a>
+    <span class="muted mono small">· {{ r.updated_at[:10] }}</span>
+    {% if r.visible %}
+      {% if r.overall is not none %} · <span class="score-num">{{ "%.1f" | format(r.overall) }}</span>{% endif %}
+      {% if r.comment %}<blockquote>{{ r.comment }}</blockquote>{% endif %}
+    {% else %}
+      {#- Blind rating (D10): no score, no notes, until the viewer has filed on this biscuit. -#}
+      <span class="muted small">· 🔒 sealed until you file your own report</span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty panel"><p class="lede">No field reports yet.</p></div>
+{% endif %}
+
+{% if ideas %}
+<h2 class="section-title">📮 Ideas</h2>
+<ul class="profile-reports">
+  {% for s in ideas %}
+  <li><span class="tag tag-{{ s.status }}">{{ statuses.get(s.status, s.status) }}</span>
+    <span class="muted mono small">#{{ s.id }}</span> {{ s.body | truncate(140) }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

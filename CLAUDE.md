@@ -150,6 +150,11 @@ internal goes in it (see `.gitignore`).
 - **Suggestion credits:** `roadmap.json` cites `#id`s only. The Working on it page looks up each
   author's name in the DB at render time (`views.credited`), so names show on the page but never
   reach git. `tests/test_credits.py` guards that the file names nobody.
+- **D27: agent profiles** (`/agent/<id>`, suggestion #8, 2026-11-18). Look, rank, activity
+  counts, collection, recent reports, ideas and court record. **D10 holds per report:** a report on
+  a biscuit the viewer can't see yet shows as sealed, with no score and no notes. The points
+  *balance* stays private (rank only). Names link to profiles via `agent(..., link=true)`; never
+  use that inside another `<a>`.
 - **Locker** (`/locker`): your look (avatar + equipped flair), avatar picker and inventory
   (shop + loot, by source). **Deliberately not behind the shop switch**: what you own stays wearable.
 - **Every balance display must use `views.balance`.** The points page once computed its own

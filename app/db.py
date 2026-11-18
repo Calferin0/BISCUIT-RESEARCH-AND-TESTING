@@ -1248,6 +1248,34 @@ def update_member(member_id: int, name: str, avatar: str) -> None:
     conn.commit()
 
 
+def member_reports(member_id: int, limit: int = 12) -> list[sqlite3.Row]:
+    """An agent's latest field reports, with what views.agent_profile needs to apply D10."""
+    return get_db().execute(
+        f"""SELECT r.id, r.biscuit_id, r.comment, r.updated_at, ro.overall,
+                   b.name AS biscuit_name, b.created_at, b.case_status
+            FROM ratings r
+            JOIN biscuits b ON b.id = r.biscuit_id AND b.active = 1
+            LEFT JOIN {RATING_OVERALLS} ro ON ro.id = r.id
+            WHERE r.member_id = ?
+            ORDER BY r.updated_at DESC LIMIT ?""",
+        (member_id, limit),
+    ).fetchall()
+
+
+def rated_biscuit_ids(member_id: int) -> set[int]:
+    return {r[0] for r in get_db().execute("SELECT biscuit_id FROM ratings WHERE member_id = ?", (member_id,))}
+
+
+def court_record(member_id: int) -> dict[str, int]:
+    """How many objections this agent has raised, and how many their reports have faced."""
+    conn = get_db()
+    return {
+        "raised": conn.execute("SELECT COUNT(*) FROM objections WHERE objector_id = ?", (member_id,)).fetchone()[0],
+        "faced": conn.execute("""SELECT COUNT(*) FROM objections o JOIN ratings r ON r.id = o.rating_id
+                                 WHERE r.member_id = ?""", (member_id,)).fetchone()[0],
+    }
+
+
 def get_member(member_id: int) -> sqlite3.Row | None:
     return get_db().execute("SELECT * FROM members WHERE id = ?", (member_id,)).fetchone()
 

@@ -153,7 +153,7 @@
     {% for r in reports %}{% set v = votes.get(r.id, {"count": 0, "mine": false}) %}
     <li class="report" id="r{{ r.id }}">
       <div class="report-head">
-        <strong>{{ agent(r.member_id, r.name, r.avatar) }}</strong>
+        <strong>{{ agent(r.member_id, r.name, r.avatar, link=true) }}</strong>
         {% if r.overall is not none %}<span class="score-num">{{ "%.1f" | format(r.overall) }}</span>{% endif %}
         {% set cm = court.get(r.id) %}
         {% if cm and cm.contested %}<span class="tag tag-contested" title="A Biscuit Court jury sustained an objection to this report">⚖️ CONTESTED</span>{% endif %}

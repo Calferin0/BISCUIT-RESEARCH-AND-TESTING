@@ -14,7 +14,8 @@
         "🔔 A Court tab at the top, with a red badge showing how many cases are in session",
         "💡 Every shipped idea on this page now shows who suggested it",
         "🏷️ Tags beyond rarity: Limited edition, Seasonal and Own brand. Any agent can set them from a specimen's page (#1)",
-        "🇫🇷 Where's it from? Pick a country and the case file gets its flag. Anything from outside the UK is marked 🌍 Foreign (#3)"
+        "🇫🇷 Where's it from? Pick a country and the case file gets its flag. Anything from outside the UK is marked 🌍 Foreign (#3)",
+        "🪪 Agent profiles: tap any agent's name to see their look, rank, collection, recent reports and ideas. Sealed scores stay sealed (#8)"
       ]
     },
     {
@@ -101,7 +102,7 @@
     },
     {
       "id": "agent-profiles",
-      "status": "later",
+      "status": "done",
       "icon": "🪪",
       "title": "Agent profiles",
       "blurb": "Visit another agent's page to see their activity and flair. Sealed scores stay sealed (#8)."

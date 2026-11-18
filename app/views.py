@@ -62,6 +62,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.working_on_it": "Reading what's being built",
         "views.tony": "Visiting Tony 🎩",
         "views.court_page": "In Biscuit Court ⚖️",
+        "views.agent_profile": "Snooping on an agent's profile 🕵️",
     }.get(endpoint)
 
 
@@ -693,6 +694,32 @@ def locker():
     return render_template("locker.html", by_slot=by_slot, slots=shop.SLOTS, avatars=scoring.AVATARS,
                            total=len(items), loot_count=sum(1 for i in items if i["source"] == "loot"),
                            catalogue_size=len(shop.CATALOGUE))
+
+
+@bp.get("/agent/<int:member_id>")
+@agent_required
+def agent_profile(member_id: int):
+    """Another agent's profile (#8): their look, rank, activity and collection.
+    Blind rating (D10) holds: a report on a biscuit the viewer can't see yet shows as sealed,
+    with no score and no notes. The points *balance* stays private; only the rank shows."""
+    m = db.get_member(member_id)
+    if m is None or not m["active"]:
+        abort(404)
+    today = date.today()
+    seen_by_me = db.rated_biscuit_ids(g.member["id"])
+    reports = [{**dict(r), "visible": cases.can_see(r, r["biscuit_id"] in seen_by_me, today)}
+               for r in db.member_reports(member_id)]
+    activity = next(iter(db.points_activity(member_id)), None)
+    earned = points.total(activity) if activity else 0
+    equipped = set(db.equipped_items().get(member_id, []))
+    collection = [{"item": shop.BY_KEY[o["item_key"]], "source": o["source"], "on": o["item_key"] in equipped}
+                  for o in db.inventory(member_id) if o["item_key"] in shop.BY_KEY]
+    duels = next((d for d in db.duel_records() if d["id"] == member_id), None)
+    return render_template(
+        "agent.html", m=m, rank=points.rank(earned), activity=activity, reports=reports,
+        collection=collection, slots=shop.SLOTS, duels=duels, court_rec=db.court_record(member_id),
+        ideas=[s for s in db.list_suggestions(None) if s["member_id"] == member_id],
+        statuses=db.SUGGESTION_STATUSES, is_me=member_id == g.member["id"])
 
 
 @bp.post("/locker/equip/<slot>")

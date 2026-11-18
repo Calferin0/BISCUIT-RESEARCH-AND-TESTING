@@ -38,7 +38,7 @@
     </div>
     <p class="suggestion-body">{{ s.body }}</p>
     <div class="suggestion-foot">
-      <span class="muted small">{{ s.avatar }} Agent {{ s.name }}</span>
+      <a class="muted small agent-link" href="{{ url_for('views.agent_profile', member_id=s.member_id) }}">{{ s.avatar }} Agent {{ s.name }}</a>
       <span class="suggestion-actions">
       {% if s.member_id == me.id and s.status == 'new' %}
       <form method="post" action="{{ url_for('views.delete_suggestion', suggestion_id=s.id) }}"
