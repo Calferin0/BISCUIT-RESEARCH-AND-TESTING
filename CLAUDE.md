@@ -9,9 +9,10 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-18):** live BRT is on schema v10 and current with `main`: everything through
-Tony the mascot, the 2026-11-18 weekly batch (suggestions #2 #4 #6 #7) and Biscuit Court (D25)
-(last deploy 2026-11-18, 14:56). 183 tests pass. #4's fix is inferred, not seen on a phone. **Deploys need CF's explicit OK each time**: the auto-mode
+**Status (2026-11-18):** live BRT is on schema v11 and current with `main`: everything through
+Tony, the 2026-11-18 batches (suggestions #1 #2 #3 #4 #6 #7 #8), Biscuit Court (#9, D25), the
+Court nav badge and suggestion credits (last deploy 2026-11-18, 15:28). 200 tests pass. #4's fix
+is inferred, not seen on a phone. Open: #10 (Mystery Tin odds), CF's call. **Deploys need CF's explicit OK each time**: the auto-mode
 classifier blocks unapproved production deploys. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
