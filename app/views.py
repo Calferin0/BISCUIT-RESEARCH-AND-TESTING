@@ -4,6 +4,7 @@ from __future__ import annotations
 import functools
 import json
 import random
+import re
 from dataclasses import asdict
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -129,12 +130,7 @@ def index():
                  "drop": shelf.get(b["id"])}
                 for b in rows]
     todo = sum(1 for b in biscuits if not b["mine"] and not b["closed"])
-    in_session = 0
-    if features.enabled("court"):  # a count only: it gives nothing sealed away
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        in_session = sum(1 for o in db.list_objections(g.member["id"])
-                         if court.rule(o["id"], court.parse_ts(o["created_at"]), o["sustained"], o["overruled"], now).open)
-    return render_template("index.html", biscuits=biscuits, todo=todo, kinds=drops_mod.KINDS, in_session=in_session)
+    return render_template("index.html", biscuits=biscuits, todo=todo, kinds=drops_mod.KINDS)
 
 
 @bp.get("/tony")
@@ -290,6 +286,15 @@ def _court_case(row, viewer_id: int, today: date, now: datetime) -> dict:
             "hours_left": max(1, -(-int((ruling.closes_at - now).total_seconds()) // 3600)),  # ceil
             "can_vote": (visible and ruling.open and row["my_vote"] is None
                          and court.can_serve(viewer_id, row["objector_id"], row["defendant_id"]))}
+
+
+def court_in_session() -> int:
+    """How many cases are open right now. A count only, so it gives nothing sealed away (D10)."""
+    if not features.enabled("court"):
+        return 0
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    return sum(1 for o in db.list_objections(None)
+               if court.rule(o["id"], court.parse_ts(o["created_at"]), o["sustained"], o["overruled"], now).open)
 
 
 def court_marks(biscuit_id: int) -> dict[int, dict]:
@@ -914,6 +919,18 @@ def radar_add_shop():
 
 SUGGESTION_MAX = 1000
 ROADMAP_FILE = Path(__file__).with_name("roadmap.json")
+_REF = re.compile(r"#(\d+)")
+_TRAILING_REFS = re.compile(r"\s*\((?:#\d+(?:,\s*)?)+\)\.?\s*$")  # a trailing " (#1, #3)." is shown as chips instead
+
+
+def credited(text: str, authors: dict) -> dict:
+    """'Fix names (#7)' -> {"text": "Fix names", "credits": [{"id": 7, "name": "...", "avatar": "..."}]}.
+    A #id whose suggestion is gone (taken back, #6) still shows, just without a name."""
+    credits = []
+    for n in dict.fromkeys(int(m) for m in _REF.findall(text)):
+        s = authors.get(n)
+        credits.append({"id": n, "name": s["name"] if s else None, "avatar": s["avatar"] if s else ""})
+    return {"text": _TRAILING_REFS.sub("", text), "credits": credits}
 ROADMAP_STATUSES = {"now": "🚧 Working on it now", "next": "⏭️ Up next", "later": "🗓️ On the list",
                     "done": "✅ Done"}
 
@@ -963,6 +980,13 @@ def working_on_it():
     except (OSError, ValueError):
         current_app.logger.exception("roadmap.json unreadable")
         roadmap = {"updates": [], "roadmap": []}
+    # Credit where it's due: roadmap.json cites suggestions by #id only (public repo, D14); the
+    # author's name is looked up here from the local DB, so it shows on the page but never in git.
+    authors = {s["id"]: s for s in db.list_suggestions(None)}
+    for u in roadmap.get("updates", []):
+        u["items"] = [credited(text, authors) for text in u.get("items", [])]
+    for r in roadmap.get("roadmap", []):
+        r["blurb"] = credited(r.get("blurb", ""), authors)
     return render_template("working_on_it.html", roadmap=roadmap, road_statuses=ROADMAP_STATUSES,
                            statuses=db.SUGGESTION_STATUSES,
                            in_flight=db.list_suggestions(g.member["id"], ("building", "planned")),

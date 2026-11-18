@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Working on it{% endblock %}
+{#- Who suggested it: names come from the local DB at render time, never from roadmap.json. -#}
+{% macro credits(cs) %}{% for c in cs %} <span class="credit"{% if c.name %} title="Suggested by Agent {{ c.name }}"{% endif %}>💡 #{{ c.id }}{% if c.name %} · {{ c.avatar }} Agent {{ c.name }}{% endif %}</span>{% endfor %}{% endmacro %}
 {% block content %}
 <section class="hero">
   <p class="eyebrow">Site under construction · hard hats on</p>
@@ -14,7 +16,7 @@
 <article class="panel update">
   <p class="eyebrow">{{ u.date }}</p>
   <h3>{{ u.title }}</h3>
-  <ul>{% for item in u["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
+  <ul>{% for item in u["items"] %}<li>{{ item.text }}{{ credits(item.credits) }}</li>{% endfor %}</ul>
 </article>
 {% endfor %}
 {% endif %}
@@ -28,7 +30,7 @@
     {% for r in group %}
     <li class="road-card road-{{ status }}">
       <span class="road-icon" aria-hidden="true">{{ r.icon }}</span>
-      <div><strong>{{ r.title }}</strong><p class="muted">{{ r.blurb }}</p></div>
+      <div><strong>{{ r.title }}</strong><p class="muted">{{ r.blurb.text }}{{ credits(r.blurb.credits) }}</p></div>
     </li>
     {% endfor %}
   </ul>

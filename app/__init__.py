@@ -71,14 +71,18 @@ def create_app(test_config: dict | None = None) -> Flask:
     def inject_globals() -> dict:
         me = g.get("member")
         my_points = None
+        court_open = 0
         flair: dict = {}
         if me is not None:  # header badge balance + everyone's flair: a few tiny queries per page
             row = next(iter(db.points_activity(me["id"])), None)
             my_points = (points.total(row) if row else 0) - db.points_spent(me["id"]) + db.ledger_total(me["id"])
             flair = {mid: shop.flair_for(keys) for mid, keys in db.equipped_items().items()}
+            from .views import court_in_session  # here, not at module top: views imports this package
+            court_open = court_in_session()  # nav badge on every page
         return {
             "me": me,
             "my_points": my_points,
+            "court_open": court_open,
             "flair": flair,
             "CATEGORIES": scoring.CATEGORIES,
             "PURIST_FIELD": scoring.PURIST_FIELD,

@@ -119,7 +119,9 @@ code { font-family: var(--mono); }
   .wide-only { display: none; }
   .narrow-only { display: inline; }
   .nav { gap: 0; }
-  .nav a:not(.btn) { padding: 6px 5px; font-size: .84rem; }
+  .nav a:not(.btn) { padding: 6px 4px; font-size: .84rem; }
+  .nav-court { position: relative; }
+  .nav-court .nav-count { position: absolute; top: -3px; right: -6px; min-width: 15px; height: 15px; padding: 0 3px; margin: 0; font-size: .6rem; }
   .nav .btn-small { padding: 7px 9px; font-size: .8rem; }
   /* If it still overflows, fade the right edge so it's obvious there's more to scroll to. */
   .nav.scrolls { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
@@ -865,6 +867,8 @@ body.stealthed .estop-wrap:hover, body.stealthed .estop-wrap:focus-within { opac
 }
 @media (max-width: 420px) { .brand-tony { height: 32px; } }
 
+.credit { display: inline-block; margin: 2px 0 0 4px; padding: 1px 8px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--line); font: 600 .72rem/1.5 var(--mono); color: var(--ink); white-space: nowrap; }
+
 /* --- Biscuit Court (app/court.py) -------------------------------------------------------- */
 .report-foot { gap: 8px; align-items: flex-start; flex-wrap: wrap; }
 .objection { flex: 1 1 auto; }
@@ -874,6 +878,12 @@ body.stealthed .estop-wrap:hover, body.stealthed .estop-wrap:focus-within { opac
 .objection form { margin-top: 8px; }
 .tag-contested { color: var(--red); border: 2px solid currentColor; font: 800 .65rem/1.4 var(--mono); letter-spacing: .1em; padding: 1px 6px; border-radius: 4px; transform: rotate(-3deg); }
 .tag-in-court { font: 700 .7rem/1.4 var(--mono); color: var(--amber); text-decoration: none; }
+.nav-count {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 4px; padding: 0 5px;
+  border-radius: 99px; background: var(--red); color: #fff; font: 800 .68rem/1 var(--mono); vertical-align: 1px;
+  animation: nudge-red 2.4s ease-in-out infinite;
+}
+@keyframes nudge-red { 50% { box-shadow: 0 0 0 3px rgb(224 72 63 / .3); } }
 .court-banner { display: inline-block; margin-top: 4px; padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--amber); color: var(--amber); font-weight: 650; text-decoration: none; }
 .court-banner:hover { border-style: solid; }
 .court-hero { position: relative; }

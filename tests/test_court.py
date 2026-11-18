@@ -162,3 +162,20 @@ def test_control_room_can_strike_a_case(app, client, agent_token, biscuit_id):
     client.post(f"/admin/court/{case_id}/strike")                 # test client is loopback
     with app.app_context():
         assert brtdb.list_objections(dee) == []
+
+
+def test_nav_tab_shows_cases_in_session(app, client, agent_token, biscuit_id):
+    page = client.get("/leaderboard").data.decode()
+    assert 'href="/court"' in page and "nav-count" not in page   # tab always there, no badge at 0
+
+    _, dee = _agent(app, "Dee")
+    rid = _report(app, dee, biscuit_id)
+    client.post(f"/b/{biscuit_id}/rate", data=scores(2))
+    client.post(f"/reports/{rid}/object", data={"reason": "Nobody likes it that much"})
+    page = client.get("/leaderboard").data.decode()
+    assert '<span class="nav-count" aria-hidden="true">1</span>' in page
+    assert "Biscuit Court: 1 case in session" in page
+
+    with app.app_context():
+        brtdb.set_setting("feature.court", "0")
+    assert 'href="/court"' not in client.get("/leaderboard").data.decode()
