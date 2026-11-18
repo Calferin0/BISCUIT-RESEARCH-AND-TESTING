@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#111317">
 <title>{% block title %}Specimens{% endblock %} · BRT</title>
+{% if mascot and mascot.favicon %}
+<link rel="icon" type="image/png" href="{{ mascot.favicon }}">
+{% else %}
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍪%3C/text%3E%3C/svg%3E">
+{% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/brt.css') }}">
 <script src="{{ url_for('static', filename='js/brt.js') }}" defer></script>
 </head>
@@ -23,7 +27,11 @@
 
 <header class="topbar">
   <a class="brand" href="{{ url_for('views.index') }}">
+    {%- if mascot %}
+    <img class="brand-mark brand-tony" src="{{ mascot.small or mascot.img }}" alt="" width="28" height="38">
+    {%- else %}
     <span class="brand-mark" aria-hidden="true">🍪</span>
+    {%- endif %}
     <span class="brand-text"><strong>BRT</strong><small>Biscuit Research &amp; Testing</small></span>
   </a>
   {% if me %}
@@ -66,6 +74,7 @@
   </figure>
   {% endif %}
   <p class="muted mono">BRT Division · All findings are final · Crumbs are not.</p>
+  {% if mascot and me %}<p class="mono"><a href="{{ url_for('views.tony') }}">🎩 Mascot on duty: Tony</a></p>{% endif %}
 </footer>
 
 {#- The E-STOP: one press swaps BRT for a fake "work" screen. Esc or another press brings it back.

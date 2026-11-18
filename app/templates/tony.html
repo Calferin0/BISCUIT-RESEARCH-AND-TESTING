@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Tony{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Personnel file · BRT/MASCOT/001</p>
+  <h1>🎩 Tony</h1>
+  <p class="lede">Mascot of the BRT Division. Guardian of the tin. Owner of the moustache.</p>
+</section>
+
+<div class="tony-file">
+  <figure class="panel tony-stage" data-tony-stage {% if mascot.model %}data-model="{{ mascot.model }}"{% endif %}>
+    {#- The PNG is the poster: it shows until the 3D scan loads, and stays if WebGL or the model
+        isn't available, so the page always has Tony on it. -#}
+    <img class="tony-poster" src="{{ mascot.img }}" alt="Tony, the BRT mascot: a nutcracker-style biscuit tin with a pink hat and a black moustache" data-tony-poster>
+    <canvas class="tony-canvas" data-tony-canvas hidden aria-label="3D scan of Tony. Drag to spin him; tap to boop."></canvas>
+    <span class="stamp tony-stamp">On duty</span>
+    {% if mascot.model %}
+    <figcaption class="muted small mono" data-tony-hint>Loading 3D scan…</figcaption>
+    {% endif %}
+  </figure>
+
+  <article class="panel tony-facts">
+    <h2>Service record</h2>
+    <dl>
+      <dt>Codename</dt><dd>TONY</dd>
+      <dt>Role</dt><dd>Mascot, head of biscuit security</dd>
+      <dt>Clearance</dt><dd>Tin-level (all of it)</dd>
+      <dt>Distinguishing marks</dt><dd>A magnificent moustache. The hat stays on.</dd>
+      <dt>Eyes</dt><dd>Closed. He's listening.</dd>
+      <dt>Known weakness</dt><dd>Anyone who asks nicely for a biscuit.</dd>
+    </dl>
+    <p class="muted small">Tony doesn't rate specimens. He holds them. His impartiality is beyond question.</p>
+  </article>
+</div>
+
+{% if mascot.model %}
+<script src="{{ url_for('static', filename='js/tony3d.js') }}" defer></script>
+{% endif %}
+{% endblock %}

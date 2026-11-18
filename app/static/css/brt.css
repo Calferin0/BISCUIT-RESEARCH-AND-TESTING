@@ -820,6 +820,47 @@ body.stealthed .estop-wrap:hover, body.stealthed .estop-wrap:focus-within { opac
 .sf-out { height: 30%; margin: 0; padding: 6px 8px; border-top: 1px solid #ccc; background: #fff; font: 12px/1.4 Consolas, "Courier New", monospace; overflow: hidden; }
 @media (max-width: 640px) { .sf-tree { display: none; } }
 
+/* --- Tony, the mascot (files in static/img/mascot/, git-ignored) ----------------------- */
+.brand-tony { width: auto; height: 38px; transform-origin: 50% 100%; filter: drop-shadow(0 3px 4px rgb(0 0 0 / .45)); }
+.hero-tony { position: relative; padding-right: 130px; }
+.tony-peek {
+  position: absolute; right: 0; bottom: 4px; width: 112px;
+  transform: rotate(6deg); transform-origin: 50% 100%; transition: transform .2s;
+  filter: drop-shadow(0 10px 14px rgb(0 0 0 / .5));
+}
+.tony-peek img { width: 100%; height: auto; }
+.tony-peek:hover, .tony-peek:focus-visible { transform: rotate(-4deg) translateY(-4px); }
+.empty-tony { width: 120px; height: auto; margin: 0 auto 8px; filter: drop-shadow(0 8px 12px rgb(0 0 0 / .5)); }
+
+.tony-file { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.tony-file .panel { margin: 0; }
+.tony-stage {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  aspect-ratio: 4 / 5; padding: 12px;
+  background:
+    radial-gradient(60% 45% at 50% 42%, rgb(243 168 59 / .2), transparent 70%),
+    radial-gradient(40% 8% at 50% 92%, rgb(0 0 0 / .55), transparent 70%),
+    linear-gradient(180deg, var(--panel), #14171c);
+}
+.tony-poster { flex: 1; min-height: 0; width: 100%; object-fit: contain; filter: drop-shadow(0 14px 18px rgb(0 0 0 / .55)); }
+.tony-canvas { flex: 1; min-height: 0; width: 100%; touch-action: none; cursor: grab; }
+.tony-canvas:active { cursor: grabbing; }
+.tony-stage figcaption { margin-top: 6px; text-align: center; }
+.tony-stamp { color: var(--green); }
+.tony-facts dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0 0 16px; }
+.tony-facts dt { font: 700 .72rem/1.6 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.tony-facts dd { margin: 0; }
+@media (max-width: 720px) {
+  .tony-file { grid-template-columns: 1fr; }
+  .tony-facts dl { grid-template-columns: 1fr; gap: 2px; }
+  .tony-facts dd { margin-bottom: 8px; }
+}
+@media (max-width: 640px) {
+  .hero-tony { padding-right: 84px; }
+  .tony-peek { width: 72px; }
+}
+@media (max-width: 420px) { .brand-tony { height: 32px; } }
+
 /* --- celebration crumbs (spawned by brt.js) -------------------------------------------- */
 .crumb {
   position: fixed; top: -48px; z-index: 50; pointer-events: none;

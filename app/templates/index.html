@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero">
+<section class="hero{% if mascot %} hero-tony{% endif %}">
+  {% if mascot %}
+  <a class="tony-peek" href="{{ url_for('views.tony') }}" title="Tony, BRT mascot. Tap for his file.">
+    <img src="{{ mascot.img }}" alt="Tony, the BRT mascot" width="122" height="164">
+  </a>
+  {% endif %}
   <p class="eyebrow">Case files open: {{ biscuits | length }} · Agent {{ me.name }}</p>
   <h1>Specimens under evaluation</h1>
   {% if todo %}
@@ -12,8 +17,13 @@
 
 {% if not biscuits %}
 <div class="empty panel">
+  {% if mascot %}
+  <img class="empty-tony" src="{{ mascot.img }}" alt="Tony, the BRT mascot" width="120" height="162">
+  <p class="lede">No specimens on file. Tony is guarding an empty tin.</p>
+  {% else %}
   <p class="placeholder" aria-hidden="true">🫙</p>
   <p class="lede">No specimens on file. Somebody has eaten the evidence.</p>
+  {% endif %}
   <a class="btn" href="{{ url_for('views.add_biscuit') }}">Log the first specimen</a>
 </div>
 {% else %}

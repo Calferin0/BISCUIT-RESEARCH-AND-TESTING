@@ -120,6 +120,12 @@ internal goes in it (see `.gitignore`).
   team-reported. Don't invent them.
 - Fun extras: Biscuit of the Day and horoscope (`app/fun.py`, seeded by date, no storage) and the
   Dunk-O-Meter (`dunks` table, `/dunk`).
+- **Tony, the team mascot** (2026-11-18). His files live in `app/static/img/mascot/`, git-ignored
+  like the product shots, and are made from CF's originals in `assets/` (also ignored) by
+  `tools/make_mascot.py`. `util.mascot()` returns None without `tony.png`, and the app falls back
+  to 🍪. He appears as the top-bar logo, the favicon, the home hero peek and the empty state, and
+  has a `/tony` file page. His 3D scan there uses `static/js/tony3d.js`, a hand-written WebGL
+  viewer for exactly one textured GLB mesh (no three.js, per D3); the PNG poster stays if it fails.
 - **D24: control room powers** (schema v9). Feature switches (`app/features.py`, `settings`
   table, `feature.<key>` = 1/0, missing = on) hide a feature from the nav and close its routes
   via `@features.required`. Data is never touched. Admin points grants go through the ledger

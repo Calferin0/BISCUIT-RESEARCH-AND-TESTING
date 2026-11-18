@@ -59,6 +59,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.locker": "Admiring themselves in the Locker 🪞",
         "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
+        "views.tony": "Visiting Tony 🎩",
     }.get(endpoint)
 
 
@@ -128,6 +129,15 @@ def index():
                 for b in rows]
     todo = sum(1 for b in biscuits if not b["mine"] and not b["closed"])
     return render_template("index.html", biscuits=biscuits, todo=todo, kinds=drops_mod.KINDS)
+
+
+@bp.get("/tony")
+@agent_required
+def tony():
+    """Tony's personnel file, with his 3D scan when the model file is present."""
+    if util.mascot() is None:
+        abort(404)
+    return render_template("tony.html")
 
 
 @bp.post("/b/<int:biscuit_id>/rarity")

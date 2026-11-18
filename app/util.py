@@ -40,6 +40,18 @@ def qr_data_uri(url: str) -> str:
     return segno.make(url, error="m").svg_data_uri(scale=4, border=2, dark="#1b1712", light="#fdf6e3")
 
 
+MASCOT_FILES = {"img": "tony.png", "small": "tony-96.png", "favicon": "tony-favicon.png", "model": "tony.glb"}
+
+
+def mascot() -> dict | None:
+    """Tony, the team mascot: URLs for the files present in static/img/mascot/ (supplied by CF,
+    git-ignored like the product shots). None without his main image, so templates fall back to 🍪."""
+    folder = Path(current_app.static_folder) / "img" / "mascot"
+    found = {key: url_for("static", filename=f"img/mascot/{name}")
+             for key, name in MASCOT_FILES.items() if (folder / name).is_file()}
+    return found if "img" in found else None
+
+
 def random_product_image() -> dict | None:
     """A random Motion Impossible product shot from static/img/products/ (supplied by CF)."""
     files = list_images(Path(current_app.static_folder) / "img" / "products")

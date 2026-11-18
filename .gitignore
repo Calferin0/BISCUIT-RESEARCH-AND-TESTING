@@ -28,3 +28,9 @@ app/static/img/work/*
 !app/static/img/work/README.txt
 app/static/img/products/*
 !app/static/img/products/README.txt
+app/static/img/mascot/*
+!app/static/img/mascot/README.txt
+
+# CF's source files for Tony (Blender/FBX/OBJ scans, full-size PNG). The app uses the slim
+# copies in app/static/img/mascot/, made by tools/make_mascot.py.
+assets/

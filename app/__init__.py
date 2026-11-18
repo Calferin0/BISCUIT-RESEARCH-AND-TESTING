@@ -87,6 +87,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             "is_purist": scoring.is_purist,
             "verdict": scoring.verdict,
             "product": util.random_product_image(),
+            "mascot": util.mascot(),
             "work_shots": util.work_screenshots(),
             "rarity_tiers": rarity.TIERS,
             "feature_on": features.enabled_map() if request.endpoint != "static" else {},
