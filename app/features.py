@@ -19,6 +19,7 @@ FEATURES = {
     "dunk": ("⏱️", "Dunk-O-Meter", "Dunk timing and Hall of Fame"),
     "horoscope": ("🔮", "Daily horoscope", "Biscuit of the Day + horoscope on the dashboard"),
     "estop": ("🛑", "E-STOP button", "The work-mode panic button"),
+    "court": ("⚖️", "Biscuit Court", "OBJECTION! buttons on field reports, juries and Judge Tony"),
 }
 
 

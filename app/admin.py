@@ -128,6 +128,14 @@ def toggle_dunk(dunk_id: int):
     return redirect(url_for("admin.index") + "#dunks")
 
 
+@bp.post("/court/<int:objection_id>/strike")
+def strike_objection(objection_id: int):
+    """Strike a court case from the record (unkind wording, or just enough). Votes go with it."""
+    db.strike_objection(objection_id)
+    flash(f"Case #{objection_id} struck from the record.", "info")
+    return redirect(url_for("views.court_page"))
+
+
 @bp.post("/duels/<int:duel_id>/void")
 def void_duel(duel_id: int):
     flash("Duel voided, stakes refunded." if db.void_duel(duel_id) else "That duel is already over.", "info")

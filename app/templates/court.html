@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Biscuit Court{% endblock %}
+{% macro case_card(c) %}
+<article class="panel court-case{% if not c.ruling.open %} verdict-{{ c.ruling.verdict }}{% endif %}" id="c{{ c.id }}">
+  <p class="eyebrow">Case #{{ c.id }} · filed {{ c.created_at[:10] }}</p>
+  <h3>The People v. Agent {{ c.defendant_name }}'s
+    {% if c.visible %}<a href="{{ url_for('views.biscuit', biscuit_id=c.biscuit_id) }}#r{{ c.rating_id }}">{{ c.biscuit_name }}</a>{% else %}{{ c.biscuit_name }}{% endif %} report</h3>
+  <p class="muted small">Objection raised by {{ c.objector_avatar }} Agent {{ c.objector_name }}</p>
+
+  {% if c.visible %}
+  <div class="court-evidence">
+    <p class="court-label">Exhibit A: the report{% if c.amended %} <span class="muted small">(amended since the objection)</span>{% endif %}</p>
+    <blockquote>{% if c.overall is not none %}<span class="score-num">{{ "%.1f" | format(c.overall) }}</span> {% endif %}{{ c.comment or "No field notes. Just numbers." }}</blockquote>
+    <p class="court-label">Grounds for objection</p>
+    <blockquote>{{ c.reason }}</blockquote>
+    {% if c.defence %}<p class="court-label">The defence</p><blockquote>{{ c.defence }}</blockquote>{% endif %}
+  </div>
+  {% else %}
+  {#- Blind rating (D10): the evidence and the objection's wording can quote scores, so they aren't sent. -#}
+  <p class="court-sealed">🔒 Evidence sealed. File your own report on {{ c.biscuit_name }} to read it and sit on the jury.</p>
+  {% endif %}
+
+  <p class="court-tally mono small">Sustained {{ c.ruling.sustained }} · Overruled {{ c.ruling.overruled }}</p>
+
+  {% if c.ruling.open %}
+    {% if c.can_vote %}
+    <form method="post" action="{{ url_for('views.court_vote', objection_id=c.id) }}" class="jury-vote">
+      <span class="muted small">Jury duty: your vote is final.</span>
+      <button class="btn btn-small" name="vote" value="sustained" type="submit">⚖️ Sustained</button>
+      <button class="btn btn-small btn-ghost" name="vote" value="overruled" type="submit">🙅 Overruled</button>
+    </form>
+    {% elif c.my_vote %}
+    <p class="muted small">You voted <strong>{{ c.my_vote }}</strong>. The jury is still out.</p>
+    {% elif c.is_defendant or c.objector_id == me.id %}
+    <p class="muted small">You're a party to this case, so you can't sit on the jury.</p>
+    {% endif %}
+    {% if c.is_defendant %}
+    <form method="post" action="{{ url_for('views.court_defence', objection_id=c.id) }}" class="stack court-defence">
+      <label class="field">Your defence <small>one line, max {{ defence_max }} characters</small>
+        <input name="defence" maxlength="{{ defence_max }}" value="{{ c.defence }}" placeholder="e.g. It was a brave biscuit.">
+      </label>
+      <button class="btn btn-small" type="submit">Enter it into the record</button>
+    </form>
+    {% endif %}
+    <p class="muted small mono">Closes at {{ jury_size }} votes or in {{ c.hours_left }} h, whichever comes first.</p>
+  {% else %}
+    <div class="court-ruling">
+      <span class="stamp stamp-big verdict-stamp">{{ c.ruling.verdict }}</span>
+      <p>🎩 <strong>Judge Tony:</strong> {{ c.ruling.line }}</p>
+    </div>
+  {% endif %}
+
+  {% if control_room %}
+  <form method="post" action="{{ url_for('admin.strike_objection', objection_id=c.id) }}"
+        data-confirm="Strike case #{{ c.id }} from the record? It and its votes are deleted.">
+    <button class="btn btn-small btn-ghost" type="submit">🗑️ Strike from the record (control room)</button>
+  </form>
+  {% endif %}
+</article>
+{% endmacro %}
+
+{% block content %}
+<section class="hero court-hero">
+  {% if mascot %}<img class="judge-tony" src="{{ mascot.img }}" alt="Judge Tony" width="96" height="130">{% endif %}
+  <p class="eyebrow">All rise · Judge Tony presiding</p>
+  <h1>⚖️ Biscuit Court</h1>
+  <p class="lede">Disagree with a field report? Press <strong>OBJECTION!</strong> on it. A jury of {{ jury_size }} agents decides within {{ sitting_hours }} hours.</p>
+  <p class="muted small">No Biscuit Points change hands. A sustained objection just stamps the report CONTESTED. Object to the opinion, never the agent.</p>
+</section>
+
+<h2 class="section-title">🔔 In session <span class="muted">({{ open_cases | length }})</span></h2>
+{% if open_cases %}
+  {% for c in open_cases %}{{ case_card(c) }}{% endfor %}
+{% else %}
+<div class="empty panel"><p class="lede">No cases before the court. Tony is polishing his gavel.</p></div>
+{% endif %}
+
+{% if closed_cases %}
+<h2 class="section-title">📜 Rulings</h2>
+{% for c in closed_cases %}{{ case_card(c) }}{% endfor %}
+{% endif %}
+{% endblock %}

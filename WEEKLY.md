@@ -10,6 +10,11 @@ GitHub repo is public.
 ## 2. AI drafts the changes (in a worktree, never in the live folder)
 ```powershell
 git worktree add ..\brt-weekly -b weekly/2026-11-12   # once per week, with that week's date
+# The git-ignored images don't come with a worktree. Copy them so previews look like live
+# (otherwise Tony turns back into a 🍪 and the footer has no product shots):
+Copy-Item app\static\img\mascot\*   -Exclude README.txt ..\brt-weekly\app\static\img\mascot\
+Copy-Item app\static\img\products\* -Exclude README.txt ..\brt-weekly\app\static\img\products\
+Copy-Item app\static\img\work\*     -Exclude README.txt ..\brt-weekly\app\static\img\work\
 ```
 Open Claude Code in `..\brt-weekly` and say:
 

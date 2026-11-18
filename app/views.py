@@ -5,13 +5,13 @@ import functools
 import json
 import random
 from dataclasses import asdict
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, session, url_for)
 
-from . import (awards, cases, db, duel, features, fun, images, loot, points, radar, rarity, recommend, scoring,
+from . import (awards, cases, court, db, duel, features, fun, images, loot, points, radar, rarity, recommend, scoring,
                shop, similarity, util)
 from . import drops as drops_mod
 
@@ -60,6 +60,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.edit_drop": "Logging a biscuit drop",
         "views.working_on_it": "Reading what's being built",
         "views.tony": "Visiting Tony 🎩",
+        "views.court_page": "In Biscuit Court ⚖️",
     }.get(endpoint)
 
 
@@ -128,7 +129,12 @@ def index():
                  "drop": shelf.get(b["id"])}
                 for b in rows]
     todo = sum(1 for b in biscuits if not b["mine"] and not b["closed"])
-    return render_template("index.html", biscuits=biscuits, todo=todo, kinds=drops_mod.KINDS)
+    in_session = 0
+    if features.enabled("court"):  # a count only: it gives nothing sealed away
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        in_session = sum(1 for o in db.list_objections(g.member["id"])
+                         if court.rule(o["id"], court.parse_ts(o["created_at"]), o["sustained"], o["overruled"], now).open)
+    return render_template("index.html", biscuits=biscuits, todo=todo, kinds=drops_mod.KINDS, in_session=in_session)
 
 
 @bp.get("/tony")
@@ -153,6 +159,28 @@ def vote_rarity(biscuit_id: int):
     return redirect(url_for("views.biscuit", biscuit_id=biscuit_id) + "#rarity")
 
 
+@bp.post("/b/<int:biscuit_id>/rename")
+@agent_required
+def rename_biscuit(biscuit_id: int):
+    """The agent who opened a case can fix its name and brand (#7). Same duplicate rule as
+    adding (D9): an exact match with another specimen is blocked."""
+    b = _active_biscuit_or_404(biscuit_id)
+    if b["added_by"] != g.member["id"]:
+        abort(403)
+    name = request.form.get("name", "").strip()[:NAME_MAX]
+    brand = request.form.get("brand", "").strip()[:NAME_MAX]
+    back = redirect(url_for("views.biscuit", biscuit_id=biscuit_id))
+    if not name:
+        flash("A specimen needs a name.", "error")
+        return back
+    if any(m.exact and m.id != biscuit_id for m in db.similar_biscuits(name, brand)):
+        flash(f"Another specimen is already called “{name}”.", "error")
+        return back
+    db.rename_biscuit(biscuit_id, name, brand)
+    flash(f"Case file corrected: {name}.", "info")
+    return back
+
+
 @bp.get("/b/<int:biscuit_id>")
 @agent_required
 def biscuit(biscuit_id: int):
@@ -167,6 +195,7 @@ def biscuit(biscuit_id: int):
         reports=db.ratings_for_biscuit(biscuit_id) if visible else [],
         cats=db.category_averages(biscuit_id) if visible else {},
         votes=db.report_votes(biscuit_id, g.member["id"]) if visible else {},
+        court=court_marks(biscuit_id) if visible and features.enabled("court") else {},
         reopen_pending=db.reopen_request_count(biscuit_id),
         cheapest=min((p for p in db.current_prices() if p["biscuit_id"] == biscuit_id),
                      key=lambda p: p["pence"], default=None),
@@ -244,6 +273,120 @@ def thumb_report(rating_id: int):
     else:
         db.toggle_report_vote(rating_id, g.member["id"])
     return redirect(url_for("views.biscuit", biscuit_id=b["id"]) + f"#r{rating_id}")
+
+
+# --- Biscuit Court -----------------------------------------------------------------------
+
+def _court_case(row, viewer_id: int, today: date, now: datetime) -> dict:
+    """One objection, ready for a template. `visible` follows blind rating (D10): if the viewer
+    can't see this biscuit's results yet, they get the biscuit's name and the verdict only, not the
+    evidence (scores, comment, the objection's wording) and no jury seat."""
+    b = {"created_at": row["b_created_at"], "case_status": row["case_status"]}
+    ruling = court.rule(row["id"], court.parse_ts(row["created_at"]), row["sustained"], row["overruled"], now)
+    visible = cases.can_see(b, row["viewer_rated"], today)
+    return {**dict(row), "ruling": ruling, "visible": visible,
+            "is_defendant": row["defendant_id"] == viewer_id,
+            "amended": row["report_updated"] > row["created_at"],
+            "hours_left": max(1, -(-int((ruling.closes_at - now).total_seconds()) // 3600)),  # ceil
+            "can_vote": (visible and ruling.open and row["my_vote"] is None
+                         and court.can_serve(viewer_id, row["objector_id"], row["defendant_id"]))}
+
+
+def court_marks(biscuit_id: int) -> dict[int, dict]:
+    """{rating_id: {"contested": bool, "open_case": id | None}} for the stamps on a biscuit page."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    marks: dict[int, dict] = {}
+    for o in db.objections_for_biscuit(biscuit_id):
+        r = court.rule(o["id"], court.parse_ts(o["created_at"]), o["sustained"], o["overruled"], now)
+        m = marks.setdefault(o["rating_id"], {"contested": False, "open_case": None})
+        m["contested"] |= r.verdict == "sustained"
+        if r.open:
+            m["open_case"] = o["id"]
+    return marks
+
+
+@bp.post("/reports/<int:rating_id>/object")
+@agent_required
+@features.required("court")
+def object_to_report(rating_id: int):
+    """OBJECTION! Same gate as 👍: someone else's report, and only once you can see it."""
+    owner = db.rating_owner(rating_id)
+    if owner is None:
+        abort(404)
+    b = _active_biscuit_or_404(owner["biscuit_id"])
+    back = redirect(url_for("views.biscuit", biscuit_id=b["id"]) + f"#r{rating_id}")
+    if not court.can_object(g.member["id"], owner["member_id"]):
+        flash("You can't object to your own report. Just amend it. 🙃", "error")
+        return back
+    if not cases.can_see(b, db.get_rating(g.member["id"], b["id"]) is not None, date.today()):
+        abort(403)
+    reason = court.clean_reason(request.form.get("reason", ""))
+    if reason is None:
+        flash(f"An objection needs grounds: at least {court.REASON_MIN} characters.", "error")
+        return back
+    case_id = db.add_objection(rating_id, g.member["id"], reason)
+    if case_id is None:
+        flash("You've already objected to that report. The court heard you the first time.", "info")
+        return back
+    flash("⚖️ OBJECTION! The case is now before Judge Tony. The jury has 24 hours.", "celebrate")
+    return redirect(url_for("views.court_page") + f"#c{case_id}")
+
+
+@bp.get("/court")
+@agent_required
+@features.required("court")
+def court_page():
+    today, now = date.today(), datetime.now(timezone.utc).replace(tzinfo=None)
+    all_cases = [_court_case(r, g.member["id"], today, now) for r in db.list_objections(g.member["id"])]
+    return render_template("court.html",
+                           open_cases=[c for c in all_cases if c["ruling"].open],
+                           closed_cases=[c for c in all_cases if not c["ruling"].open][:20],
+                           jury_size=court.JURY_SIZE, sitting_hours=court.SITTING_HOURS,
+                           defence_max=court.DEFENCE_MAX,
+                           control_room=request.remote_addr in ("127.0.0.1", "::1"))
+
+
+def _open_case_or_redirect(objection_id: int):
+    """(case, None) if the case exists and is still sitting, else (None, a redirect to the court)."""
+    row = db.get_objection(objection_id, g.member["id"])
+    if row is None:
+        abort(404)
+    case = _court_case(row, g.member["id"], date.today(), datetime.now(timezone.utc).replace(tzinfo=None))
+    if not case["ruling"].open:
+        flash("Too late: that case is closed. Judge Tony has ruled.", "info")
+        return None, redirect(url_for("views.court_page") + f"#c{objection_id}")
+    return case, None
+
+
+@bp.post("/court/<int:objection_id>/defence")
+@agent_required
+@features.required("court")
+def court_defence(objection_id: int):
+    case, done = _open_case_or_redirect(objection_id)
+    if done:
+        return done
+    if not case["is_defendant"]:
+        abort(403)
+    db.set_defence(objection_id, g.member["id"], " ".join(request.form.get("defence", "").split())[:court.DEFENCE_MAX])
+    flash("Defence entered into the record.", "info")
+    return redirect(url_for("views.court_page") + f"#c{objection_id}")
+
+
+@bp.post("/court/<int:objection_id>/vote")
+@agent_required
+@features.required("court")
+def court_vote(objection_id: int):
+    vote = request.form.get("vote", "")
+    if vote not in court.VOTES:
+        abort(400)
+    case, done = _open_case_or_redirect(objection_id)
+    if done:
+        return done
+    if not case["can_vote"]:
+        abort(403)
+    if db.cast_jury_vote(objection_id, g.member["id"], vote):
+        flash("Your verdict is in. Thank you for your jury service. 🎩", "info")
+    return redirect(url_for("views.court_page") + f"#c{objection_id}")
 
 
 @bp.post("/b/<int:biscuit_id>/photo")
@@ -791,6 +934,16 @@ def suggestions():
         return redirect(url_for("views.suggestions"))
     return render_template("suggestions.html", items=db.list_suggestions(g.member["id"]),
                            kinds=db.SUGGESTION_KINDS, statuses=db.SUGGESTION_STATUSES)
+
+
+@bp.post("/suggestions/<int:suggestion_id>/delete")
+@agent_required
+def delete_suggestion(suggestion_id: int):
+    if db.delete_suggestion(suggestion_id, g.member["id"]):
+        flash(f"Suggestion #{suggestion_id} taken back out of the box.", "info")
+    else:
+        flash("You can only take back your own notes, and only while they're still in the inbox.", "error")
+    return redirect(url_for("views.suggestions"))
 
 
 @bp.post("/suggestions/<int:suggestion_id>/vote")

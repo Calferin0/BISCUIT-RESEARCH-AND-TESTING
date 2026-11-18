@@ -39,10 +39,18 @@
     <p class="suggestion-body">{{ s.body }}</p>
     <div class="suggestion-foot">
       <span class="muted small">{{ s.avatar }} Agent {{ s.name }}</span>
+      <span class="suggestion-actions">
+      {% if s.member_id == me.id and s.status == 'new' %}
+      <form method="post" action="{{ url_for('views.delete_suggestion', suggestion_id=s.id) }}"
+            data-confirm="Take suggestion #{{ s.id }} back out of the box? Its +1s go too.">
+        <button class="btn btn-small btn-ghost" type="submit" title="Delete your suggestion">🗑️ Take back</button>
+      </form>
+      {% endif %}
       <form method="post" action="{{ url_for('views.vote', suggestion_id=s.id) }}">
         <button class="btn btn-small {{ '' if s.voted else 'btn-ghost' }}" type="submit"
                 aria-pressed="{{ 'true' if s.voted else 'false' }}" title="{{ 'Take back your +1' if s.voted else '+1 this' }}">👍 {{ s.votes }}</button>
       </form>
+      </span>
     </div>
     {% if s.response %}<blockquote class="reply"><strong>Control room:</strong> {{ s.response }}</blockquote>{% endif %}
   </li>

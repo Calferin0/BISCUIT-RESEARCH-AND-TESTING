@@ -13,6 +13,9 @@
   {% elif biscuits %}
   <p class="lede">Every specimen reported on. Exemplary work, agent. 🫡</p>
   {% endif %}
+  {% if in_session %}
+  <a class="court-banner" href="{{ url_for('views.court_page') }}">⚖️ Biscuit Court is in session: {{ in_session }} open case{{ 's' if in_session != 1 }}. The jury needs you.</a>
+  {% endif %}
 </section>
 
 {% if not biscuits %}

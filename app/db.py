@@ -19,7 +19,7 @@ from . import similarity
 from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -226,6 +226,24 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 ) WITHOUT ROWID;
+
+-- v10: Biscuit Court. An objection to another agent's field report, decided by a jury.
+-- The verdict is computed (app/court.py) from the votes and the clock, never stored.
+CREATE TABLE IF NOT EXISTS objections (
+    id          INTEGER PRIMARY KEY,
+    rating_id   INTEGER NOT NULL REFERENCES ratings(id) ON DELETE CASCADE,
+    objector_id INTEGER NOT NULL REFERENCES members(id),
+    reason      TEXT    NOT NULL,
+    defence     TEXT    NOT NULL DEFAULT '',
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (rating_id, objector_id)                 -- one objection per agent per report
+);
+CREATE TABLE IF NOT EXISTS objection_votes (
+    objection_id INTEGER NOT NULL REFERENCES objections(id) ON DELETE CASCADE,
+    member_id    INTEGER NOT NULL REFERENCES members(id),
+    vote         TEXT    NOT NULL CHECK (vote IN ('sustained', 'overruled')),
+    PRIMARY KEY (objection_id, member_id)           -- one final vote per juror
+) WITHOUT ROWID;
 """
 
 # v4 -> v5 adds columns to an existing table, which CREATE TABLE IF NOT EXISTS can't do.
@@ -395,7 +413,8 @@ RATING_OVERALLS = f"""(SELECT r.id, r.biscuit_id, r.member_id, AVG(s.value) AS o
 
 
 def list_biscuits(member_id: int | None, include_inactive: bool = False) -> list[sqlite3.Row]:
-    """Biscuits with aggregate scores. `mine` = 1 if member_id has rated it. Unrated-by-me first."""
+    """Biscuits with aggregate scores. `mine` = 1 if member_id has rated it.
+    Unrated-by-me first, then newest case first (#2). id breaks ties within the same second."""
     return get_db().execute(
         f"""SELECT b.*, COUNT(ro.id) AS n, AVG(ro.overall) AS overall,
                    COALESCE(MAX(ro.member_id = :me), 0) AS mine
@@ -403,7 +422,7 @@ def list_biscuits(member_id: int | None, include_inactive: bool = False) -> list
             LEFT JOIN {RATING_OVERALLS} ro ON ro.biscuit_id = b.id
             WHERE b.active = 1 OR :all
             GROUP BY b.id
-            ORDER BY mine, b.name COLLATE NOCASE""",
+            ORDER BY mine, b.created_at DESC, b.id DESC""",
         {"me": member_id, "all": int(include_inactive)},
     ).fetchall()
 
@@ -616,6 +635,15 @@ def toggle_vote(suggestion_id: int, member_id: int) -> None:
                          (suggestion_id, member_id))
 
 
+def delete_suggestion(suggestion_id: int, member_id: int) -> bool:
+    """Authors can take back their own note while it's still in the inbox (#6). Once it's planned
+    or later, app/roadmap.json may cite its #id, so it stays. Its +1s go with it (cascade)."""
+    conn = get_db()
+    with conn:
+        return conn.execute("DELETE FROM suggestions WHERE id = ? AND member_id = ? AND status = 'new'",
+                            (suggestion_id, member_id)).rowcount == 1
+
+
 def suggestion_exists(suggestion_id: int) -> bool:
     return get_db().execute("SELECT 1 FROM suggestions WHERE id = ?", (suggestion_id,)).fetchone() is not None
 
@@ -697,6 +725,79 @@ def report_votes(biscuit_id: int, viewer_id: int) -> dict[int, dict]:
         (viewer_id, biscuit_id),
     ).fetchall()
     return {r["rating_id"]: {"count": r["n"], "mine": bool(r["mine"])} for r in rows}
+
+
+# --- Biscuit Court (v10) ----------------------------------------------------------------
+
+_OBJECTION_SELECT = f"""
+    SELECT o.*, r.member_id AS defendant_id, r.biscuit_id, r.comment, r.updated_at AS report_updated,
+           ro.overall,
+           b.name AS biscuit_name, b.created_at AS b_created_at, b.case_status,
+           ob.name AS objector_name, ob.avatar AS objector_avatar,
+           df.name AS defendant_name, df.avatar AS defendant_avatar,
+           (SELECT COUNT(*) FROM objection_votes v WHERE v.objection_id = o.id AND v.vote = 'sustained') AS sustained,
+           (SELECT COUNT(*) FROM objection_votes v WHERE v.objection_id = o.id AND v.vote = 'overruled') AS overruled,
+           (SELECT v.vote FROM objection_votes v WHERE v.objection_id = o.id AND v.member_id = :me) AS my_vote,
+           EXISTS (SELECT 1 FROM ratings mr WHERE mr.biscuit_id = r.biscuit_id AND mr.member_id = :me) AS viewer_rated
+    FROM objections o
+    JOIN ratings r ON r.id = o.rating_id
+    JOIN biscuits b ON b.id = r.biscuit_id
+    JOIN members ob ON ob.id = o.objector_id
+    JOIN members df ON df.id = r.member_id
+    LEFT JOIN {RATING_OVERALLS} ro ON ro.id = r.id
+"""
+
+
+def add_objection(rating_id: int, objector_id: int, reason: str) -> int | None:
+    """None if this agent has already objected to this report (UNIQUE)."""
+    conn = get_db()
+    try:
+        with conn:
+            return conn.execute("INSERT INTO objections (rating_id, objector_id, reason) VALUES (?, ?, ?)",
+                                (rating_id, objector_id, reason)).lastrowid
+    except sqlite3.IntegrityError:
+        return None
+
+
+def list_objections(viewer_id: int, limit: int = 60) -> list[sqlite3.Row]:
+    """Newest first, active biscuits only. Visibility (D10) is the caller's job: see views.court."""
+    return get_db().execute(_OBJECTION_SELECT + " WHERE b.active = 1 ORDER BY o.created_at DESC, o.id DESC LIMIT :n",
+                            {"me": viewer_id, "n": limit}).fetchall()
+
+
+def get_objection(objection_id: int, viewer_id: int) -> sqlite3.Row | None:
+    return get_db().execute(_OBJECTION_SELECT + " WHERE o.id = :id",
+                            {"me": viewer_id, "id": objection_id}).fetchone()
+
+
+def objections_for_biscuit(biscuit_id: int) -> list[sqlite3.Row]:
+    """Every case against this biscuit's reports, for the CONTESTED stamps on its page."""
+    return get_db().execute(_OBJECTION_SELECT + " WHERE r.biscuit_id = :b",
+                            {"me": None, "b": biscuit_id}).fetchall()
+
+
+def set_defence(objection_id: int, defendant_id: int, text: str) -> bool:
+    conn = get_db()
+    with conn:
+        return conn.execute(
+            """UPDATE objections SET defence = ?
+               WHERE id = ? AND rating_id IN (SELECT id FROM ratings WHERE member_id = ?)""",
+            (text, objection_id, defendant_id)).rowcount == 1
+
+
+def cast_jury_vote(objection_id: int, member_id: int, vote: str) -> bool:
+    """False if they've already voted: jury votes are final."""
+    conn = get_db()
+    with conn:
+        return conn.execute("INSERT OR IGNORE INTO objection_votes (objection_id, member_id, vote) VALUES (?, ?, ?)",
+                            (objection_id, member_id, vote)).rowcount == 1
+
+
+def strike_objection(objection_id: int) -> None:
+    """Control room: remove a case from the record entirely (its votes cascade)."""
+    conn = get_db()
+    with conn:
+        conn.execute("DELETE FROM objections WHERE id = ?", (objection_id,))
 
 
 # --- biscuit points ---------------------------------------------------------------------
@@ -1100,6 +1201,13 @@ def update_biscuit(biscuit_id: int, name: str, brand: str, rarity_override: str 
     conn = get_db()
     conn.execute("UPDATE biscuits SET name = ?, brand = ?, rarity_override = ? WHERE id = ?",
                  (name, brand, rarity_override, biscuit_id))
+    conn.commit()
+
+
+def rename_biscuit(biscuit_id: int, name: str, brand: str) -> None:
+    """The logging agent's spelling fix (#7). Unlike update_biscuit it can't touch the rarity pin."""
+    conn = get_db()
+    conn.execute("UPDATE biscuits SET name = ?, brand = ? WHERE id = ?", (name, brand, biscuit_id))
     conn.commit()
 
 

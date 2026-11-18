@@ -2,6 +2,18 @@
   "_comment": "Drives the WORKING ON IT page. Re-read on every request, so edits show without a restart. Public repo: no teammate names here; cite suggestions by #id. status: now | next | later | done",
   "updates": [
     {
+      "date": "2026-11-18",
+      "title": "From the suggestion box",
+      "items": [
+        "🎩 Meet Tony, the BRT mascot. Tap him on the Specimens page to see his file and spin his 3D scan",
+        "🆕 Specimens are listed newest case first, and the ones still waiting for your report stay at the front (#2)",
+        "✨ Legendary case files glow and shimmer in step, on a clean loop (#4)",
+        "🗑️ Take back your own suggestion while it's still in the inbox (#6)",
+        "✏️ Opened a case with a typo? Fix its name from the specimen page (#7)",
+        "⚖️ Biscuit Court: press OBJECTION! on a field report you disagree with. A jury of three agents decides, Judge Tony rules, and no points change hands (#9)"
+      ]
+    },
+    {
       "date": "2026-11-05",
       "title": "Launch week",
       "items": [
@@ -75,6 +87,20 @@
       "icon": "🗺️",
       "title": "Biscuit radius map",
       "blurb": "Shops near the office with biscuit prices that the team can add to and correct."
+    },
+    {
+      "id": "biscuit-tags",
+      "status": "next",
+      "icon": "🏷️",
+      "title": "Biscuit tags and origin",
+      "blurb": "Tags like limited edition, seasonal and foreign alongside rarity, plus where a biscuit is from, with a flag (#1, #3)."
+    },
+    {
+      "id": "agent-profiles",
+      "status": "later",
+      "icon": "🪪",
+      "title": "Agent profiles",
+      "blurb": "Visit another agent's page to see their activity and flair. Sealed scores stay sealed (#8)."
     }
   ]
 }

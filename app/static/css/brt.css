@@ -478,14 +478,17 @@ blockquote { margin: 10px 0 0; padding: 0 0 0 12px; border-left: 3px solid var(-
 .card.rarity-uncommon { box-shadow: var(--shadow), 0 0 0 2px var(--r-uncommon); }
 .card.rarity-rare { box-shadow: var(--shadow), 0 0 0 2px var(--r-rare), 0 0 18px rgb(58 155 255 / .35); }
 .card.rarity-epic { box-shadow: var(--shadow), 0 0 0 2px var(--r-epic), 0 0 24px rgb(179 107 255 / .45); }
-.card.rarity-legendary { box-shadow: var(--shadow), 0 0 0 3px var(--r-legendary), 0 0 30px rgb(255 154 31 / .55); animation: legend-pulse 2.4s ease-in-out infinite; }
+.card.rarity-legendary { box-shadow: var(--shadow), 0 0 0 3px var(--r-legendary), 0 0 30px rgb(255 154 31 / .55); animation: legend-pulse 3s ease-in-out infinite; }
 .card.rarity-legendary .card-photo::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(105deg, transparent 35%, rgb(255 230 160 / .45) 50%, transparent 65%);
-  background-size: 250% 100%; animation: shimmer 2.8s linear infinite;
+  background-size: 250% 100%; background-position: 150% 0; animation: shimmer 3s ease-in-out infinite;
 }
-@keyframes legend-pulse { 50% { box-shadow: var(--shadow), 0 0 0 3px var(--r-legendary), 0 0 44px rgb(255 154 31 / .8); } }
-@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+/* #4: one shared 3 s cycle. The glow and the sweep used different periods (2.4 s / 2.8 s), so they
+   drifted against each other and the loop never looked the same twice. Now the sweep crosses in the
+   first half, the glow peaks as it passes, then both rest before the next pass. */
+@keyframes legend-pulse { 25% { box-shadow: var(--shadow), 0 0 0 3px var(--r-legendary), 0 0 44px rgb(255 154 31 / .8); } 60% { box-shadow: var(--shadow), 0 0 0 3px var(--r-legendary), 0 0 30px rgb(255 154 31 / .55); } }
+@keyframes shimmer { 0% { background-position: 150% 0; } 50%, 100% { background-position: -100% 0; } }
 .shelf-badge { margin: 0 0 6px; font: 700 .7rem/1.3 var(--mono); color: #8a2a12; }
 .tier-pick { border: 0; padding: 0; margin: 0 0 16px; }
 .tier-pick legend { font-weight: 650; margin-bottom: 6px; }
@@ -691,6 +694,7 @@ blockquote { margin: 10px 0 0; padding: 0 0 0 12px; border-left: 3px solid var(-
 .suggestion-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
 .suggestion-body { margin: 8px 0; white-space: pre-line; overflow-wrap: anywhere; }
 .suggestion-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.suggestion-actions { display: flex; align-items: center; gap: 6px; }
 .suggestion .inline-form { margin-top: 8px; }
 .reply { margin-top: 10px; font-style: normal; }
 .tag-new { background: var(--panel-2); color: var(--ink); }
@@ -860,6 +864,32 @@ body.stealthed .estop-wrap:hover, body.stealthed .estop-wrap:focus-within { opac
   .tony-peek { width: 72px; }
 }
 @media (max-width: 420px) { .brand-tony { height: 32px; } }
+
+/* --- Biscuit Court (app/court.py) -------------------------------------------------------- */
+.report-foot { gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.objection { flex: 1 1 auto; }
+.objection summary { list-style: none; display: inline-block; cursor: pointer; }
+.objection summary::-webkit-details-marker { display: none; }
+.objection[open] summary { color: var(--red); border-color: var(--red); }
+.objection form { margin-top: 8px; }
+.tag-contested { color: var(--red); border: 2px solid currentColor; font: 800 .65rem/1.4 var(--mono); letter-spacing: .1em; padding: 1px 6px; border-radius: 4px; transform: rotate(-3deg); }
+.tag-in-court { font: 700 .7rem/1.4 var(--mono); color: var(--amber); text-decoration: none; }
+.court-banner { display: inline-block; margin-top: 4px; padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--amber); color: var(--amber); font-weight: 650; text-decoration: none; }
+.court-banner:hover { border-style: solid; }
+.court-hero { position: relative; }
+.judge-tony { float: right; width: 84px; height: auto; margin: 0 0 8px 12px; transform: rotate(4deg); filter: drop-shadow(0 8px 12px rgb(0 0 0 / .5)); }
+.court-case { position: relative; }
+.court-case h3 { margin: 0 0 4px; }
+.court-label { margin: 12px 0 4px; font: 700 .7rem/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.court-evidence blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--line); background: var(--bg); border-radius: 0 8px 8px 0; overflow-wrap: anywhere; }
+.court-sealed { margin: 10px 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
+.court-tally { margin: 12px 0 8px; }
+.jury-vote { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.court-defence { margin: 8px 0; }
+.court-ruling { margin-top: 8px; }
+.verdict-stamp { text-transform: uppercase; }
+.verdict-sustained .verdict-stamp { color: var(--red); }
+.verdict-overruled .verdict-stamp { color: var(--green); }
 
 /* --- celebration crumbs (spawned by brt.js) -------------------------------------------- */
 .crumb {

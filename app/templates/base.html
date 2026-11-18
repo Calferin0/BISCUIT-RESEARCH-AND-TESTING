@@ -74,7 +74,11 @@
   </figure>
   {% endif %}
   <p class="muted mono">BRT Division · All findings are final · Crumbs are not.</p>
-  {% if mascot and me %}<p class="mono"><a href="{{ url_for('views.tony') }}">🎩 Mascot on duty: Tony</a></p>{% endif %}
+  {% if me and (mascot or feature_on.get('court', True)) %}<p class="mono">
+    {%- if mascot %}<a href="{{ url_for('views.tony') }}">🎩 Mascot on duty: Tony</a>{% endif %}
+    {%- if mascot and feature_on.get('court', True) %} · {% endif %}
+    {%- if feature_on.get('court', True) %}<a href="{{ url_for('views.court_page') }}">⚖️ Biscuit Court</a>{% endif -%}
+  </p>{% endif %}
 </footer>
 
 {#- The E-STOP: one press swaps BRT for a fake "work" screen. Esc or another press brings it back.

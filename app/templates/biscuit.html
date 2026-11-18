@@ -59,6 +59,17 @@
   </div>
 </section>
 
+{% if b.added_by == me.id %}
+<details class="panel rename-panel">
+  <summary><strong>✏️ Typo in the case file? Fix the name</strong> <span class="muted small">(you opened this case)</span></summary>
+  <form method="post" action="{{ url_for('views.rename_biscuit', biscuit_id=b.id) }}" class="stack">
+    <label class="field">Name <input name="name" value="{{ b.name }}" required maxlength="60"></label>
+    <label class="field">Brand <small>optional</small><input name="brand" value="{{ b.brand }}" maxlength="60"></label>
+    <button class="btn btn-wide" type="submit">Save the correction</button>
+  </form>
+</details>
+{% endif %}
+
 {% if not b.image %}
 <details class="panel photo-panel">
   <summary><strong>📸 No evidence photo yet. Add one?</strong></summary>
@@ -124,6 +135,9 @@
       <div class="report-head">
         <strong>{{ agent(r.member_id, r.name, r.avatar) }}</strong>
         {% if r.overall is not none %}<span class="score-num">{{ "%.1f" | format(r.overall) }}</span>{% endif %}
+        {% set cm = court.get(r.id) %}
+        {% if cm and cm.contested %}<span class="tag tag-contested" title="A Biscuit Court jury sustained an objection to this report">⚖️ CONTESTED</span>{% endif %}
+        {% if cm and cm.open_case %}<a class="tag tag-in-court" href="{{ url_for('views.court_page') }}#c{{ cm.open_case }}">🔔 In court</a>{% endif %}
         <time class="muted mono small">{{ r.updated_at[:10] }}</time>
       </div>
       <div class="chips">
@@ -135,6 +149,17 @@
         {% if r.member_id == me.id %}
         <span class="muted small">👍 {{ v.count }} on your report</span>
         {% else %}
+        {% if feature_on.get('court', True) %}
+        <details class="objection">
+          <summary class="btn btn-small btn-ghost">⚖️ OBJECTION!</summary>
+          <form method="post" action="{{ url_for('views.object_to_report', rating_id=r.id) }}" class="stack">
+            <label class="field">Grounds for objection <small>about the opinion, not the agent</small>
+              <input name="reason" required minlength="5" maxlength="200" placeholder="e.g. 5/5 for dunk? It disintegrated.">
+            </label>
+            <button class="btn btn-small" type="submit">Take it to Biscuit Court</button>
+          </form>
+        </details>
+        {% endif %}
         <form method="post" action="{{ url_for('views.thumb_report', rating_id=r.id) }}">
           <button class="btn btn-small {{ '' if v.mine else 'btn-ghost' }}" type="submit" aria-pressed="{{ 'true' if v.mine else 'false' }}"
                   title="{{ 'Take back your thumbs-up' if v.mine else 'Funny or useful? Thumbs it up (earns them Biscuit Points)' }}">👍 {{ v.count }}</button>
