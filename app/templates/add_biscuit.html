@@ -30,6 +30,21 @@
       </div>
     </fieldset>
 
+    <fieldset class="tag-pick">
+      <legend>What kind of biscuit? <small>optional · any agent can change these later</small></legend>
+      <label class="field">Where's it from?
+        <select name="origin">
+          <option value="">Don't know</option>
+          {% for code, name in countries %}<option value="{{ code }}"{% if form.origin == code %} selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="tag-row">
+        {% for t in tag_list %}
+        <label class="tag-option" title="{{ t.blurb }}"><input type="checkbox" name="tags" value="{{ t.key }}"{% if t.key in (form.tags or []) %} checked{% endif %}> {{ t.icon }} {{ t.label }}</label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
     <div class="dupes{% if matches | selectattr('exact') | list %} exact{% endif %}" data-dupes{% if not matches %} hidden{% endif %}>
       <p class="eyebrow">Already on file?</p>
       <ul data-dupes-list>

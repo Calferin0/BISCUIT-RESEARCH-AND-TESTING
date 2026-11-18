@@ -867,6 +867,18 @@ body.stealthed .estop-wrap:hover, body.stealthed .estop-wrap:focus-within { opac
 }
 @media (max-width: 420px) { .brand-tony { height: 32px; } }
 
+/* --- tags and origin (app/tags.py) -------------------------------------------------- */
+.tag-pick { border: 0; padding: 0; margin: 0 0 16px; }
+.tag-pick legend { font-weight: 650; margin-bottom: 6px; }
+.tag-pick legend small { font-weight: 400; color: var(--muted); }
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; }
+.tag-option { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 99px; cursor: pointer; }
+.tag-option:has(input:checked) { border-color: var(--accent); background: rgb(243 168 59 / .12); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.kind-chip { display: inline-block; padding: 2px 10px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--line); font-size: .85rem; }
+.kind-foreign { border-color: #3a9bff; }
+.card-chips { margin: 0 0 6px; font-size: 1.05rem; letter-spacing: .1em; }
+
 .credit { display: inline-block; margin: 2px 0 0 4px; padding: 1px 8px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--line); font: 600 .72rem/1.5 var(--mono); color: var(--ink); white-space: nowrap; }
 
 /* --- Biscuit Court (app/court.py) -------------------------------------------------------- */

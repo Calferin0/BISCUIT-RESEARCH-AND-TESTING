@@ -14,6 +14,7 @@
     <p class="eyebrow">Specimen #{{ "%03d" | format(b.id) }}{% if b.added_by_name %} · logged by Agent {{ b.added_by_name }}{% endif %}</p>
     <h1>{{ b.name }}</h1>
     {% if b.brand %}<p class="muted">{{ b.brand }}</p>{% endif %}
+    {% if chips %}<p class="chip-row">{% for c in chips %}<span class="kind-chip kind-{{ c.key }}">{{ c.icon }} {{ c.label }}</span>{% endfor %}</p>{% endif %}
     {% if tier %}<p><span class="rarity-badge rarity-{{ tier.key }} inline">{{ tier.icon }} {{ tier.label }}</span>
       <span class="muted small">{{ tier.blurb }}</span></p>{% endif %}
     {% if closed %}<p><span class="tag tag-closed">🗄️ Case closed · no longer in shops</span></p>{% endif %}
@@ -58,6 +59,25 @@
     {% endfor %}
   </div>
 </section>
+
+<details class="panel tags-panel" id="tags">
+  <summary><strong>🏷️ Tags &amp; origin</strong> <span class="muted small">limited, seasonal, own brand, and where it's from</span></summary>
+  <form method="post" action="{{ url_for('views.set_biscuit_tags', biscuit_id=b.id) }}" class="stack">
+      <label class="field">Where's it from?
+        <select name="origin">
+          <option value="">Don't know</option>
+          {% for code, name in countries %}<option value="{{ code }}"{% if b.origin == code %} selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="tag-row">
+        {% for t in tag_list %}
+        <label class="tag-option" title="{{ t.blurb }}"><input type="checkbox" name="tags" value="{{ t.key }}"{% if t.key in my_tags %} checked{% endif %}> {{ t.icon }} {{ t.label }}</label>
+        {% endfor %}
+      </div>
+    <p class="muted small">🌍 Foreign shows by itself when it's from outside the UK.</p>
+    <button class="btn btn-wide" type="submit">Update the case file</button>
+  </form>
+</details>
 
 {% if b.added_by == me.id %}
 <details class="panel rename-panel">

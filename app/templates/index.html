@@ -41,6 +41,7 @@
       <div class="card-body">
         <h2>{{ b.name }}</h2>
         {% if b.brand %}<p class="card-brand">{{ b.brand }}</p>{% endif %}
+        {% if b.chips %}<p class="card-chips" title="{{ b.chips | map(attribute='label') | join(' · ') }}">{% for c in b.chips %}<span aria-label="{{ c.label }}">{{ c.icon }}</span>{% endfor %}</p>{% endif %}
         {% if b.drop %}<p class="shelf-badge">🛒 {{ kinds.get(b.drop.kind, b.drop.kind) }} · on shelves now</p>{% endif %}
         {% if b.n and not b.visible %}
         <p class="card-brand">🔒 {{ b.n }} report{{ 's' if b.n != 1 }} · sealed until you file</p>

@@ -10,7 +10,11 @@
         "✨ Legendary case files glow and shimmer in step, on a clean loop (#4)",
         "🗑️ Take back your own suggestion while it's still in the inbox (#6)",
         "✏️ Opened a case with a typo? Fix its name from the specimen page (#7)",
-        "⚖️ Biscuit Court: press OBJECTION! on a field report you disagree with. A jury of three agents decides, Judge Tony rules, and no points change hands (#9)"
+        "⚖️ Biscuit Court: press OBJECTION! on a field report you disagree with. A jury of three agents decides, Judge Tony rules, and no points change hands (#9)",
+        "🔔 A Court tab at the top, with a red badge showing how many cases are in session",
+        "💡 Every shipped idea on this page now shows who suggested it",
+        "🏷️ Tags beyond rarity: Limited edition, Seasonal and Own brand. Any agent can set them from a specimen's page (#1)",
+        "🇫🇷 Where's it from? Pick a country and the case file gets its flag. Anything from outside the UK is marked 🌍 Foreign (#3)"
       ]
     },
     {
@@ -90,7 +94,7 @@
     },
     {
       "id": "biscuit-tags",
-      "status": "next",
+      "status": "done",
       "icon": "🏷️",
       "title": "Biscuit tags and origin",
       "blurb": "Tags like limited edition, seasonal and foreign alongside rarity, plus where a biscuit is from, with a flag (#1, #3)."

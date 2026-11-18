@@ -141,6 +141,15 @@ internal goes in it (see `.gitignore`).
   viewers who can't see the biscuit get its name and the verdict, not the evidence or the
   objection's wording (which can quote scores), and get no jury seat. Admin strikes cases from
   `/court` when viewed at 127.0.0.1. Feature switch `court`.
+- **D26: tags and origin** (schema v11, suggestions #1 and #3, 2026-11-18). Rarity stays the
+  team vote on *how rare*. Tags (`app/tags.py`: limited, seasonal, own_brand; keys are permanent)
+  say *what kind*, and any agent can toggle them (`biscuit_tags`). `biscuits.origin` is an ISO
+  country code shown as a flag. **Foreign is derived** (origin set and not GB), never hand-set, so
+  it can't contradict the flag. Add a country by extending `tags.COUNTRIES`; never change an
+  existing code.
+- **Suggestion credits:** `roadmap.json` cites `#id`s only. The Working on it page looks up each
+  author's name in the DB at render time (`views.credited`), so names show on the page but never
+  reach git. `tests/test_credits.py` guards that the file names nobody.
 - **Locker** (`/locker`): your look (avatar + equipped flair), avatar picker and inventory
   (shop + loot, by source). **Deliberately not behind the shop switch**: what you own stays wearable.
 - **Every balance display must use `views.balance`.** The points page once computed its own

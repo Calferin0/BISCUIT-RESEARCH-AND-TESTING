@@ -13,7 +13,7 @@ from flask import (Blueprint, abort, current_app, flash, g, redirect, render_tem
                    request, send_from_directory, session, url_for)
 
 from . import (awards, cases, court, db, duel, features, fun, images, loot, points, radar, rarity, recommend, scoring,
-               shop, similarity, util)
+               shop, similarity, tags, util)
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -121,13 +121,15 @@ def index():
     today = date.today()
     rows = db.list_biscuits(g.member["id"])
     votes = db.rarity_votes()
+    tag_map = db.biscuit_tags()
     # Specimens with a current (not gone) drop get an "on shelves" badge.
     current = [d for d in db.list_drops() if not drops_mod.countdown(d, today).startswith("gone")]
     by_drop = {d["id"]: d for d in current}
     shelf = {bid: by_drop[did] for did, bid in drop_links(current, rows).items()}
     biscuits = [{**dict(b), "visible": cases.can_see(b, b["mine"], today), "closed": cases.is_closed(b),
                  "tier": rarity.decide(votes.get(b["id"], []), b["rarity_override"]),
-                 "drop": shelf.get(b["id"])}
+                 "drop": shelf.get(b["id"]),
+                 "chips": tags.chips(b["origin"], tag_map.get(b["id"], []))}
                 for b in rows]
     todo = sum(1 for b in biscuits if not b["mine"] and not b["closed"])
     return render_template("index.html", biscuits=biscuits, todo=todo, kinds=drops_mod.KINDS)
@@ -153,6 +155,18 @@ def vote_rarity(biscuit_id: int):
     t = rarity.BY_KEY[tier]
     flash(f"You voted {t.icon} {t.label}. {t.blurb}", "info")
     return redirect(url_for("views.biscuit", biscuit_id=biscuit_id) + "#rarity")
+
+
+@bp.post("/b/<int:biscuit_id>/tags")
+@agent_required
+def set_biscuit_tags(biscuit_id: int):
+    """Any agent can set what kind of biscuit it is and where it's from (#1, #3), like adding a
+    missing photo. Unknown keys and countries are dropped, not errors."""
+    _active_biscuit_or_404(biscuit_id)
+    db.set_tags_and_origin(biscuit_id, tags.clean_tags(request.form.getlist("tags")),
+                           tags.clean_origin(request.form.get("origin")), g.member["id"])
+    flash("Case file tags updated.", "info")
+    return redirect(url_for("views.biscuit", biscuit_id=biscuit_id) + "#tags")
 
 
 @bp.post("/b/<int:biscuit_id>/rename")
@@ -185,6 +199,7 @@ def biscuit(biscuit_id: int):
     # Blind rating: others' results aren't even fetched until you've filed, the case is a week
     # old, or it's closed (app/cases.py).
     visible = cases.can_see(b, mine is not None, date.today())
+    tag_keys = db.biscuit_tags().get(biscuit_id, [])
     return render_template(
         "biscuit.html", b=b, mine=mine, visible=visible,
         closed=cases.is_closed(b), unseals_on=cases.unseals_on(b),
@@ -192,6 +207,8 @@ def biscuit(biscuit_id: int):
         cats=db.category_averages(biscuit_id) if visible else {},
         votes=db.report_votes(biscuit_id, g.member["id"]) if visible else {},
         court=court_marks(biscuit_id) if visible and features.enabled("court") else {},
+        chips=tags.chips(b["origin"], tag_keys), my_tags=tag_keys,
+        tag_list=tags.TAGS, countries=tags.country_choices(),
         reopen_pending=db.reopen_request_count(biscuit_id),
         cheapest=min((p for p in db.current_prices() if p["biscuit_id"] == biscuit_id),
                      key=lambda p: p["pence"], default=None),
@@ -422,19 +439,23 @@ def add_biscuit():
     if request.method == "GET":
         # ?name=&brand= prefill, used by "Log it" links on the dashboard (drops and scouting picks).
         prefill = {"name": request.args.get("name", "")[:NAME_MAX], "brand": request.args.get("brand", "")[:NAME_MAX]}
-        return render_template("add_biscuit.html", form=prefill, matches=[])
+        return render_template("add_biscuit.html", form=prefill, matches=[],
+                               tag_list=tags.TAGS, countries=tags.country_choices())
 
     form = {
         "name": request.form.get("name", "").strip()[:NAME_MAX],
         "brand": request.form.get("brand", "").strip()[:NAME_MAX],
         "web_image": request.form.get("web_image", "").strip(),
         "confirm_new": bool(request.form.get("confirm_new")),
+        "origin": tags.clean_origin(request.form.get("origin")),
+        "tags": tags.clean_tags(request.form.getlist("tags")),
     }
 
     def again(notice: str, matches=(), code: int = 200):
         # Re-render rather than redirect so typed values survive. The browser can't refill a
         # file input, so the template asks them to re-pick an uploaded photo.
-        return render_template("add_biscuit.html", form=form, matches=matches, notice=notice), code
+        return render_template("add_biscuit.html", form=form, matches=matches, notice=notice,
+                               tag_list=tags.TAGS, countries=tags.country_choices()), code
 
     if not form["name"]:
         return again("A specimen needs a name.", code=400)
@@ -454,7 +475,9 @@ def add_biscuit():
     filename, digest, source = photo or (None, None, None)
 
     biscuit_id = db.add_biscuit(form["name"], form["brand"], filename, g.member["id"],
-                                image_hash=digest, image_source=source)
+                                image_hash=digest, image_source=source, origin=form["origin"])
+    if form["tags"]:
+        db.set_tags_and_origin(biscuit_id, form["tags"], form["origin"], g.member["id"])
     if request.form.get("tier") in rarity.BY_KEY:  # the logger's pick is the first rarity vote
         db.vote_rarity(biscuit_id, g.member["id"], request.form["tier"])
     flash("Specimen logged. Commence tasting.", "celebrate")

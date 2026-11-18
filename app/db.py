@@ -19,7 +19,7 @@ from . import similarity
 from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS biscuits (
     created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
     case_status  TEXT    NOT NULL DEFAULT 'open',  -- v5: open | closed (no longer in shops)
     closed_at    TEXT,                             -- v5
-    rarity_override TEXT                           -- v8: admin-set tier; NULL = team vote decides
+    rarity_override TEXT,                          -- v8: admin-set tier; NULL = team vote decides
+    origin       TEXT                              -- v11: ISO country code (app/tags.py); NULL = unknown
 );
 CREATE INDEX IF NOT EXISTS idx_biscuits_image_hash ON biscuits(image_hash);
 
@@ -244,13 +245,21 @@ CREATE TABLE IF NOT EXISTS objection_votes (
     vote         TEXT    NOT NULL CHECK (vote IN ('sustained', 'overruled')),
     PRIMARY KEY (objection_id, member_id)           -- one final vote per juror
 ) WITHOUT ROWID;
+
+-- v11: what kind of biscuit (app/tags.py: limited, seasonal, own_brand). Any agent can toggle.
+CREATE TABLE IF NOT EXISTS biscuit_tags (
+    biscuit_id INTEGER NOT NULL REFERENCES biscuits(id),
+    tag        TEXT    NOT NULL,
+    added_by   INTEGER REFERENCES members(id),
+    PRIMARY KEY (biscuit_id, tag)
+) WITHOUT ROWID;
 """
 
 # v4 -> v5 adds columns to an existing table, which CREATE TABLE IF NOT EXISTS can't do.
 # Applied only where missing, so the migration is idempotent (safe to re-run on any file).
 ADDED_COLUMNS = {
     "biscuits": (("case_status", "TEXT NOT NULL DEFAULT 'open'"), ("closed_at", "TEXT"),
-                 ("rarity_override", "TEXT")),                                   # v8
+                 ("rarity_override", "TEXT"), ("origin", "TEXT")),               # v8, v11
     "prices": (("active", "INTEGER NOT NULL DEFAULT 1"),),                       # v8
     "purchases": (("source", "TEXT NOT NULL DEFAULT 'shop'"),),                  # v8: shop | loot
     "drops": (("biscuit_id", "INTEGER"),),                                       # v8: explicit specimen link
@@ -456,15 +465,37 @@ def biscuit_with_image_hash(image_hash: str, exclude_id: int | None = None) -> s
 
 
 def add_biscuit(name: str, brand: str, image: str | None, added_by: int | None,
-                image_hash: str | None = None, image_source: str | None = None) -> int:
+                image_hash: str | None = None, image_source: str | None = None,
+                origin: str | None = None) -> int:
     conn = get_db()
     cur = conn.execute(
-        """INSERT INTO biscuits (name, brand, image, image_hash, image_source, added_by)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (name, brand, image, image_hash, image_source, added_by),
+        """INSERT INTO biscuits (name, brand, image, image_hash, image_source, added_by, origin)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (name, brand, image, image_hash, image_source, added_by, origin),
     )
     conn.commit()
     return cur.lastrowid
+
+
+# --- tags and origin (v11) --------------------------------------------------------------
+
+def set_tags_and_origin(biscuit_id: int, tag_keys: list[str], origin: str | None, member_id: int) -> None:
+    """Replace the biscuit's tag set and origin. Keys must already be cleaned (tags.clean_tags)."""
+    conn = get_db()
+    with conn:
+        conn.execute("UPDATE biscuits SET origin = ? WHERE id = ?", (origin, biscuit_id))
+        conn.execute(f"DELETE FROM biscuit_tags WHERE biscuit_id = ? AND tag NOT IN ({', '.join('?' for _ in tag_keys) or "''"})",
+                     (biscuit_id, *tag_keys))
+        conn.executemany("INSERT OR IGNORE INTO biscuit_tags (biscuit_id, tag, added_by) VALUES (?, ?, ?)",
+                         [(biscuit_id, k, member_id) for k in tag_keys])
+
+
+def biscuit_tags() -> dict[int, list[str]]:
+    """{biscuit_id: [tag keys]} for every biscuit."""
+    out: dict[int, list[str]] = {}
+    for r in get_db().execute("SELECT biscuit_id, tag FROM biscuit_tags"):
+        out.setdefault(r["biscuit_id"], []).append(r["tag"])
+    return out
 
 
 def set_biscuit_image(biscuit_id: int, image: str, image_hash: str, image_source: str) -> None:
