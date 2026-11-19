@@ -52,6 +52,7 @@
     <a href="{{ url_for('views.index') }}"{% if request.endpoint == 'views.index' %} aria-current="page"{% endif %}><span class="wide-only">Specimens</span><span class="narrow-only">Cases</span></a>
     {% if feature_on.radar %}<a href="{{ url_for('views.radar_page') }}"{% if request.endpoint == 'views.radar_page' %} aria-current="page"{% endif %}>Radar</a>{% endif %}
     {% if feature_on.vs %}<a href="{{ url_for('views.arena') }}"{% if request.endpoint in ('views.arena', 'views.duel_page') %} aria-current="page"{% endif %}>VS</a>{% endif %}
+    <a href="{{ url_for('views.agents_page') }}"{% if request.endpoint == 'views.agents_page' %} aria-current="page"{% endif %}>Agents</a>
     <a href="{{ url_for('views.leaderboard') }}"{% if request.endpoint == 'views.leaderboard' %} aria-current="page"{% endif %}><span class="wide-only">Leaderboard</span><span class="narrow-only">Board</span></a>
     {#- On phones the tab is just ⚖️ with the count badge on it: a full "Court" label pushed + Add off-screen. -#}
     {% if feature_on.get('court', True) %}<a class="nav-court" href="{{ url_for('views.court_page') }}"{% if request.endpoint == 'views.court_page' %} aria-current="page"{% endif %}
@@ -82,6 +83,8 @@
     {%- if mascot %}<a href="{{ url_for('views.tony') }}">🎩 Mascot on duty: Tony</a>{% endif %}
     {%- if mascot and feature_on.get('court', True) %} · {% endif %}
     {%- if feature_on.get('court', True) %}<a href="{{ url_for('views.court_page') }}">⚖️ Biscuit Court</a>{% endif -%}
+    {%- if feature_on.get('commandments', True) %} · <a href="{{ url_for('views.commandments') }}">📜 Commandments</a>{% endif -%}
+    {%- if feature_on.get('whosaid', True) %} · <a href="{{ url_for('views.whosaid_page') }}">🗣️ Who Said That?</a>{% endif -%}
   </p>{% endif %}
 </footer>
 

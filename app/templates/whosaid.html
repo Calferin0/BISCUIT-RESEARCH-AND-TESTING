@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
+{% block title %}Who Said That?{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Biscuit games · forensic linguistics division</p>
+  <h1>🗣️ Who Said That?</h1>
+  <p class="lede">A real field report from the files. Which agent wrote it? +{{ reward }} points per correct guess, up to {{ cap }} a day.
+    <span class="nowrap">Today: 🪙 {{ earned_today }}/{{ cap }}</span></p>
+  <p class="small">🔥 Streak: <strong>{{ streak }}</strong> · Best: <strong>{{ best }}</strong></p>
+</section>
+
+{% if result %}{% set who = members.get(result.author) %}
+<section class="panel reveal-panel {{ 'is-right' if result.correct else 'is-wrong' }}" id="result">
+  <h2>{% if result.correct %}🎯 Correct!{% if result.reward %} +{{ result.reward }} points{% endif %}{% else %}❌ Nope!{% endif %}</h2>
+  <p>“{{ result.quote }}” was {% if who %}{{ agent(who.id, who.name, who.avatar, link=true) }}{% else %}a former agent{% endif %}, on <strong>{{ result.biscuit }}</strong>.</p>
+  {% if result.correct and not result.reward %}<p class="small muted">Daily points cap reached: you're playing for glory now.</p>{% endif %}
+</section>
+{% endif %}
+
+{% if rnd %}
+<section class="panel quote-panel">
+  <p class="eyebrow">Field report on {{ rnd.biscuit_name }}</p>
+  <blockquote class="big-quote">“{{ rnd.comment }}”</blockquote>
+  <form method="post" class="guess-grid">
+    <input type="hidden" name="round" value="{{ rnd.id }}">
+    {% for o in options %}
+    <button class="btn guess-btn" type="submit" name="guess" value="{{ o.id }}">{{ agent(o.id, o.name, o.avatar) }}</button>
+    {% endfor %}
+  </form>
+</section>
+{% else %}
+<section class="panel">
+  <h2>🤐 Nothing to quote yet</h2>
+  <p class="muted">The game needs field reports from other agents (at least a sentence of notes) on cases you can see, plus a couple of agents to guess between. Go file a report with proper notes, and nudge the others to do the same.</p>
+</section>
+{% endif %}
+
+{% if board %}
+<h2 class="section-title">🏅 Best ears in the office</h2>
+<ol class="list">
+  {% for b in board %}
+  <li>{{ agent(b.id, b.name, b.avatar, link=true) }} <span class="muted small">· {{ b.hits }}/{{ b.played }} right</span></li>
+  {% endfor %}
+</ol>
+{% endif %}
+{% endblock %}

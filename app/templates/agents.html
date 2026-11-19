@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
+{% block title %}The Agents{% endblock %}
+{% block content %}
+<section class="hero catwalk-hero">
+  <p class="eyebrow">BRT Division · Personnel on parade</p>
+  <h1>💃 The Agent Catwalk</h1>
+  <p class="lede">Every agent, in the spotlight, in full uniform. Best dressed walk first. Want to strut harder? <a href="{{ url_for('views.locker') }}">Change your look</a>{% if feature_on.loot %} or <a href="{{ url_for('views.loot_page') }}">shake a Mystery Tin</a>{% endif %}.</p>
+</section>
+
+<ul class="catwalk">
+  {% for w in walkers %}{% set m = w.m %}{% set f = flair.get(m.id, {}) %}
+  <li class="walker{% if f.banner %} has-banner banner-{{ f.banner }}{% endif %}{% if m.id == me.id %} me{% endif %}" style="--i: {{ loop.index0 }}">
+    <div class="spotlight" aria-hidden="true"></div>
+    {% if m.id in online %}<span class="walker-live" title="On BRT right now">● live</span>{% endif %}
+    <a class="walker-link" href="{{ url_for('views.agent_profile', member_id=m.id) }}">
+      <span class="walker-avatar avatar-frame{% if f.frame %} frame-{{ f.frame }}{% endif %}" aria-hidden="true">{{ m.avatar }}</span>
+      <span class="walker-name agent-name-text{% if f.color %} name-{{ f.color }}{% endif %}{% if f.effect %} fx-{{ f.effect }}{% endif %}">Agent {{ m.name }}</span>
+      {%- if f.badge %} <span class="flair-badge">{{ f.badge }}</span>{% endif %}
+    </a>
+    {% if f.title %}<p class="walker-title">{{ f.title }}</p>{% endif %}
+    <p class="walker-rank">{{ w.rank }} · {{ w.reports }} report{{ 's' if w.reports != 1 }}</p>
+    {% if w.awards %}
+    <ul class="walker-awards" aria-label="Awards held">
+      {% for a in w.awards %}<li title="{{ a.tag }}">{{ a.icon }} {{ a.title }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if w.outfit %}
+    <p class="walker-outfit small">Wearing: {% for item in w.outfit %}{{ item.name }}{% if item.loot_tier %} <span class="rarity-badge inline rarity-{{ item.loot_tier }}">🎁</span>{% endif %}{{ ", " if not loop.last }}{% endfor %}</p>
+    {% else %}
+    <p class="walker-outfit small muted">Plain clothes. Deep cover, or just hasn't been shopping?</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

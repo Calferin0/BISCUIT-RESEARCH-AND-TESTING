@@ -19,7 +19,7 @@ from . import similarity
 from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -253,6 +253,44 @@ CREATE TABLE IF NOT EXISTS biscuit_tags (
     added_by   INTEGER REFERENCES members(id),
     PRIMARY KEY (biscuit_id, tag)
 ) WITHOUT ROWID;
+
+-- v12: every Mystery Tin opened, so the pity timer (loot.PITY) can count dry streaks.
+CREATE TABLE IF NOT EXISTS tin_pulls (
+    id         INTEGER PRIMARY KEY,
+    member_id  INTEGER NOT NULL REFERENCES members(id),
+    tier       TEXT    NOT NULL,
+    item_key   TEXT,
+    points     INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_tin_pulls_member ON tin_pulls(member_id, id);
+
+-- v12: the Ten Biscuit Commandments (#12). Agents propose, everyone +1s, the top ten are law.
+CREATE TABLE IF NOT EXISTS commandments (
+    id         INTEGER PRIMARY KEY,
+    member_id  INTEGER NOT NULL REFERENCES members(id),
+    body       TEXT    NOT NULL,
+    active     INTEGER NOT NULL DEFAULT 1,           -- admin can strike one
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS commandment_votes (
+    commandment_id INTEGER NOT NULL REFERENCES commandments(id) ON DELETE CASCADE,
+    member_id      INTEGER NOT NULL REFERENCES members(id),
+    PRIMARY KEY (commandment_id, member_id)
+) WITHOUT ROWID;
+
+-- v12: Who Said That? One row per round. The answer lives here, never in the page or cookie.
+CREATE TABLE IF NOT EXISTS whosaid_rounds (
+    id         INTEGER PRIMARY KEY,
+    member_id  INTEGER NOT NULL REFERENCES members(id),   -- the player
+    rating_id  INTEGER NOT NULL REFERENCES ratings(id) ON DELETE CASCADE,
+    options    TEXT    NOT NULL,                          -- comma-separated member ids, shown order
+    guess_id   INTEGER,                                   -- NULL = still open
+    correct    INTEGER,
+    reward     INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_whosaid_member ON whosaid_rounds(member_id, id);
 """
 
 # v4 -> v5 adds columns to an existing table, which CREATE TABLE IF NOT EXISTS can't do.
@@ -894,16 +932,27 @@ def ledger_add(member_id: int, delta: int, reason: str, ref: str = "", conn=None
         get_db().commit()
 
 
-def grant_loot(member_id: int, item_key: str, cost: int, refund: int, reason: str) -> None:
-    """One transaction: pay for the tin, then either own the item or bank the refund."""
+def grant_loot(member_id: int, item_key: str, cost: int, refund: int, reason: str, tier: str = "") -> None:
+    """One transaction: log the pull, pay for the tin, then either own the item or bank the refund."""
     conn = get_db()
     with conn:
+        conn.execute("INSERT INTO tin_pulls (member_id, tier, item_key, points) VALUES (?, ?, ?, ?)",
+                     (member_id, tier, item_key, refund))
         ledger_add(member_id, -cost, reason, "tin", conn)
         if refund:
             ledger_add(member_id, refund, f"{reason}: points back", "tin", conn)
         if item_key:
             conn.execute("INSERT OR IGNORE INTO purchases (member_id, item_key, cost, source) VALUES (?, ?, 0, 'loot')",
                          (member_id, item_key))
+
+
+def tin_dry_streak(member_id: int, good_tiers: tuple[str, ...]) -> int:
+    """Tins opened since this agent's last pull in one of `good_tiers` (all of them if never)."""
+    marks = ", ".join("?" for _ in good_tiers)
+    return get_db().execute(
+        f"""SELECT COUNT(*) FROM tin_pulls WHERE member_id = ? AND id > COALESCE(
+              (SELECT MAX(id) FROM tin_pulls WHERE member_id = ? AND tier IN ({marks})), 0)""",
+        (member_id, member_id, *good_tiers)).fetchone()[0]
 
 
 # --- duels ------------------------------------------------------------------------------
@@ -1418,3 +1467,126 @@ def demo_seed() -> None:
             upsert_rating(mid, bid, {k: rng.randint(1, 5) for k in CATEGORY_KEYS},
                           rng.choice(["", "", "Solid.", "Would dunk again."]))
     click.echo(f"Seeded {len(agents)} agents and {len(demo)} biscuits.")
+
+
+# --- the Ten Biscuit Commandments (#12) ---------------------------------------------------
+
+def list_commandments(viewer_id: int) -> list[sqlite3.Row]:
+    """Every live proposal, most +1'd first; ties go to whoever proposed first."""
+    return get_db().execute(
+        """SELECT c.*, m.name, m.avatar,
+                  (SELECT COUNT(*) FROM commandment_votes v WHERE v.commandment_id = c.id) AS votes,
+                  EXISTS (SELECT 1 FROM commandment_votes v
+                          WHERE v.commandment_id = c.id AND v.member_id = ?) AS voted
+           FROM commandments c JOIN members m ON m.id = c.member_id
+           WHERE c.active = 1
+           ORDER BY votes DESC, c.id ASC""", (viewer_id,)).fetchall()
+
+
+def add_commandment(member_id: int, body: str) -> int:
+    conn = get_db()
+    with conn:
+        return conn.execute("INSERT INTO commandments (member_id, body) VALUES (?, ?)", (member_id, body)).lastrowid
+
+
+def get_commandment(commandment_id: int) -> sqlite3.Row | None:
+    return get_db().execute("SELECT * FROM commandments WHERE id = ? AND active = 1", (commandment_id,)).fetchone()
+
+
+def toggle_commandment_vote(commandment_id: int, member_id: int) -> None:
+    conn = get_db()
+    with conn:
+        if not conn.execute("DELETE FROM commandment_votes WHERE commandment_id = ? AND member_id = ?",
+                            (commandment_id, member_id)).rowcount:
+            conn.execute("INSERT INTO commandment_votes (commandment_id, member_id) VALUES (?, ?)",
+                         (commandment_id, member_id))
+
+
+def withdraw_commandment(commandment_id: int, member_id: int) -> bool:
+    """The author can take a proposal back while nobody else has backed it."""
+    conn = get_db()
+    with conn:
+        return conn.execute(
+            """DELETE FROM commandments WHERE id = ? AND member_id = ?
+               AND NOT EXISTS (SELECT 1 FROM commandment_votes v WHERE v.commandment_id = commandments.id)""",
+            (commandment_id, member_id)).rowcount == 1
+
+
+def strike_commandment(commandment_id: int) -> None:
+    conn = get_db()
+    with conn:
+        conn.execute("UPDATE commandments SET active = 0 WHERE id = ?", (commandment_id,))
+
+
+# --- Who Said That? -----------------------------------------------------------------------
+
+def whosaid_candidates(viewer_id: int, min_len: int) -> list[sqlite3.Row]:
+    """Other agents' field reports with enough words to quote, on live specimens.
+    Visibility (D10) is the caller's job: see views.whosaid."""
+    return get_db().execute(
+        """SELECT r.id, r.member_id, r.comment, r.biscuit_id, b.name AS biscuit_name,
+                  b.created_at, b.case_status,
+                  EXISTS (SELECT 1 FROM ratings mr WHERE mr.biscuit_id = r.biscuit_id AND mr.member_id = :me) AS mine
+           FROM ratings r
+           JOIN biscuits b ON b.id = r.biscuit_id AND b.active = 1
+           JOIN members m ON m.id = r.member_id AND m.active = 1
+           WHERE r.member_id != :me AND length(trim(r.comment)) >= :n""",
+        {"me": viewer_id, "n": min_len}).fetchall()
+
+
+def active_member_ids() -> list[int]:
+    return [r[0] for r in get_db().execute("SELECT id FROM members WHERE active = 1")]
+
+
+def open_whosaid(member_id: int) -> sqlite3.Row | None:
+    return get_db().execute(
+        """SELECT w.*, r.comment, r.member_id AS author_id, b.name AS biscuit_name
+           FROM whosaid_rounds w JOIN ratings r ON r.id = w.rating_id JOIN biscuits b ON b.id = r.biscuit_id
+           WHERE w.member_id = ? AND w.guess_id IS NULL ORDER BY w.id DESC LIMIT 1""",
+        (member_id,)).fetchone()
+
+
+def start_whosaid(member_id: int, rating_id: int, options: list[int]) -> int:
+    conn = get_db()
+    with conn:
+        return conn.execute("INSERT INTO whosaid_rounds (member_id, rating_id, options) VALUES (?, ?, ?)",
+                            (member_id, rating_id, ",".join(map(str, options)))).lastrowid
+
+
+def answer_whosaid(round_id: int, member_id: int, guess_id: int, correct: bool, reward: int) -> bool:
+    """Settle an open round once (guarded UPDATE, so a double tap can't pay twice)."""
+    conn = get_db()
+    with conn:
+        ok = conn.execute(
+            """UPDATE whosaid_rounds SET guess_id = ?, correct = ?, reward = ?
+               WHERE id = ? AND member_id = ? AND guess_id IS NULL""",
+            (guess_id, int(correct), reward, round_id, member_id)).rowcount == 1
+        if ok and reward:
+            ledger_add(member_id, reward, "Who Said That?", f"whosaid:{round_id}", conn)
+    return ok
+
+
+def whosaid_history(member_id: int) -> list[sqlite3.Row]:
+    """Settled rounds, newest first."""
+    return get_db().execute(
+        """SELECT correct, reward, created_at FROM whosaid_rounds
+           WHERE member_id = ? AND guess_id IS NOT NULL ORDER BY id DESC""", (member_id,)).fetchall()
+
+
+def whosaid_rewarded_today(member_id: int) -> int:
+    return get_db().execute(
+        """SELECT COALESCE(SUM(reward), 0) FROM whosaid_rounds
+           WHERE member_id = ? AND date(created_at) = date('now')""", (member_id,)).fetchone()[0]
+
+
+def whosaid_board() -> list[sqlite3.Row]:
+    return get_db().execute(
+        """SELECT m.id, m.name, m.avatar, COUNT(w.id) AS played, COALESCE(SUM(w.correct), 0) AS hits
+           FROM members m JOIN whosaid_rounds w ON w.member_id = m.id AND w.guess_id IS NOT NULL
+           WHERE m.active = 1 GROUP BY m.id ORDER BY hits DESC, played ASC LIMIT 10""").fetchall()
+
+
+def catwalk_agents() -> list[sqlite3.Row]:
+    """Every active agent, for the Agents page."""
+    return get_db().execute(
+        "SELECT id, name, avatar, created_at FROM members WHERE active = 1 ORDER BY name COLLATE NOCASE").fetchall()

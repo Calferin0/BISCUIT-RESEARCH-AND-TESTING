@@ -160,6 +160,24 @@ internal goes in it (see `.gitignore`).
   (shop + loot, by source). **Deliberately not behind the shop switch**: what you own stays wearable.
 - **Every balance display must use `views.balance`.** The points page once computed its own
   (earned − shop) and missed the ledger, so Mystery Tins didn't show (CF report, 2026-11-06).
+- **D28: generous tins** (schema v12, #10, CF 2026-11-19: "fun and rewarding most of the time";
+  supersedes D22's "the house wins"). Pays back ~108% before pity (`loot.expected_value`; a test
+  keeps it within 100–120%). Unowned items in a tier come before duplicates. Pity: the PITY-th
+  tin since the last Rare+ uses `roll_lucky`, counted from `tin_pulls`. Tins slowly mint points
+  on purpose; if the economy inflates, retune `ODDS`/refunds, never the ledger.
+- **D29: six flair slots** (2026-11-19). Adds `effect` (CSS class `fx-*` on the name), `badge` (the
+  item value is the emoji) and `banner` (`banner-*` sets `--banner`, used by the profile hero and
+  the catwalk). Previews go through the `sample` macro in `_agent.html`. The emoji class is
+  `.flair-badge`: `.agent-badge` is the header badge.
+- **D30: Agent catwalk** (`/agents`, in the nav). Every active agent: outfit, rank and the agent
+  awards they hold (`awards._award(agent_ids=…)`). No feature switch: it's the people page.
+- **D31: Ten Biscuit Commandments** (schema v12, #12). Propose (8–140 chars), +1 others' (never your
+  own), and the top ten *with at least one vote* are law. The author can withdraw an unbacked one;
+  admin strikes from `/commandments` at 127.0.0.1. No points. Switch `commandments`.
+- **D32: Who Said That?** (schema v12, `app/whosaid.py`, pure). Quotes only other agents' reports
+  the player can already see (D10 via `cases.can_see`). The answer stays in `whosaid_rounds`,
+  never the page or cookie. +3 per correct guess via the ledger, capped at 15/day; the guarded
+  UPDATE settles once. Switch `whosaid`.
 - **Next build:** suggestions from the weekly loop (`WEEKLY.md`).
 
 ## Architecture

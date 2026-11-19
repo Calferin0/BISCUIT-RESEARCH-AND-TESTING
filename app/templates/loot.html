@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_agent.html" import sample with context %}
 {% block title %}Mystery Tins{% endblock %}
 {% block content %}
 <a class="back" href="{{ url_for('views.shop_page') }}">← Biscuit Shop</a>
@@ -14,8 +15,9 @@
   <div class="reveal-burst" aria-hidden="true"></div>
   <p class="eyebrow reveal-tier">{{ t.icon }} {{ t.label }}</p>
   {% if reveal.item_obj and not reveal.duplicate %}
+  <div class="shop-sample reveal-sample">{{ sample(reveal.item_obj, me.name, me.avatar) }}</div>
   <h2 class="reveal-title">{{ reveal.item_obj.name }}</h2>
-  <p class="muted">{{ reveal.item_obj.blurb }} It's in your shop collection now: tap to wear it.</p>
+  <p class="muted">{{ reveal.item_obj.blurb }} It's in your <a href="{{ url_for('views.locker') }}">Locker</a> now: go and wear it.</p>
   {% elif reveal.item_obj %}
   <h2 class="reveal-title">{{ reveal.item_obj.name }} <span class="muted small">(duplicate)</span></h2>
   <p class="muted">Already yours, so it melted down into <strong>+{{ reveal.points }} points</strong>.</p>
@@ -27,6 +29,14 @@
 {% endif %}
 
 <section class="panel tin-panel">
+  <div class="pity" aria-label="Lucky meter">
+    {% if pity_now %}
+    <p class="pity-hot">🔥 <strong>Lucky tin ready!</strong> Your next tin is guaranteed Rare or better.</p>
+    {% else %}
+    <p class="small"><strong>🍀 Lucky meter</strong> · {{ dry }}/{{ pity - 1 }}. Every {{ pity }}th tin without a Rare is guaranteed Rare or better.</p>
+    {% endif %}
+    <div class="pity-bar"><span style="width: {{ (100 * (dry if dry < pity else pity - 1) / (pity - 1)) | round | int }}%"></span></div>
+  </div>
   <div class="tin" aria-hidden="true"><span class="tin-lid"></span><span class="tin-body">?</span></div>
   <form method="post" data-tin-form>
     <button class="btn btn-wide tin-btn" type="submit"{% if balance < cost %} disabled{% endif %}>
@@ -47,7 +57,7 @@
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted small">On average you get ~{{ ev | round | int }} points' worth back per {{ cost }}-point tin. The house (the biscuit tin) always wins. Play for the cosmetics, not the profit.</p>
+  <p class="muted small">On average a {{ cost }}-point tin gives back ~{{ ev | round | int }} points' worth, and new cosmetics always come before duplicates. The tin is on your side these days.</p>
 </section>
 
 <h2 class="section-title">🗃️ The collection</h2>
@@ -56,7 +66,8 @@
   <li class="shop-item loot-item rarity-{{ item.loot_tier }}{{ ' owned' if item.key in owned else ' locked' }}">
     <span class="rarity-badge inline rarity-{{ item.loot_tier }}">{{ t.icon }} {{ t.label }}</span>
     <strong>{{ item.name if item.key in owned else "???" }}</strong>
-    <p class="muted small">{{ item.blurb if item.key in owned else "Open tins to discover this " ~ item.slot ~ "." }}</p>
+    {% if item.key in owned %}<div class="shop-sample">{{ sample(item, me.name, me.avatar) }}</div>{% endif %}
+    <p class="muted small">{{ item.blurb if item.key in owned else "A mystery " ~ (slots[item.slot] | lower) ~ " item." }}</p>
   </li>
   {% endfor %}
 </ul>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_agent.html" import agent with context %}
+{% from "_agent.html" import agent, sample with context %}
 {% block title %}Biscuit Shop{% endblock %}
 {% block content %}
 <a class="back" href="{{ url_for('views.points_page') }}">← Biscuit Points</a>
@@ -21,9 +21,7 @@
   {% set is_owned = item.key in owned %}{% set is_on = item.key in equipped_keys %}
   <li class="shop-item{{ ' owned' if is_owned }}{{ ' equipped' if is_on }}">
     <div class="shop-sample">
-      {%- if slot == 'title' -%}<span class="agent-name-text">Agent {{ me.name }}</span><span class="agent-title">, {{ item.value }}</span>
-      {%- elif slot == 'color' -%}<span class="agent-name-text name-{{ item.value }}">Agent {{ me.name }}</span>
-      {%- else -%}<span class="avatar-frame frame-{{ item.value }}">{{ me.avatar }}</span>{%- endif -%}
+      {{- sample(item, me.name, me.avatar) -}}
     </div>
     <strong>{{ item.name }}{% if item.loot_tier %} <span class="rarity-badge inline rarity-{{ item.loot_tier }}">🎁 loot</span>{% endif %}</strong>
     <p class="muted small">{{ item.blurb }}</p>

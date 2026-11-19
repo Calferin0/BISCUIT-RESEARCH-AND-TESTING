@@ -937,3 +937,102 @@ body.stealthed .estop-wrap:hover, body.stealthed .estop-wrap:focus-within { opac
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .crumb { display: none; }
 }
+
+/* --- 2026-11-19: new flair slots (effects, badges, banners) and more of everything ----- */
+.flair-badge { font-size: 1.05em; line-height: 1; }
+.name-ginger { color: #e0874a; }
+.name-lemon { color: #fff07a; }
+.name-fig { color: #c48ad8; }
+.name-malted { color: #f2e2c4; }
+.name-chocorange { background: linear-gradient(90deg, #8a4a24, #ff8a3d, #8a4a24); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.frame-crumbring { outline: 3px dotted #d9a35b; outline-offset: 1px; }
+.frame-neon { box-shadow: 0 0 0 2px #3ad6ff, 0 0 10px #3ad6ff, 0 0 18px rgb(58 214 255 / .5); animation: neon 2.4s steps(1) infinite; }
+.frame-sprinkles { background: repeating-conic-gradient(#ff5fa2 0 20deg, #ffd23f 0 40deg, #3ad6ff 0 60deg, #8ef05b 0 80deg); padding: 2px; }
+.frame-swirl { background: conic-gradient(#ffe7a3, #f3a83b, #ffe7a3, #f3a83b, #ffe7a3); padding: 2px; animation: holo 4s linear infinite; }
+.frame-halo { box-shadow: 0 -6px 0 -2px #ffe28a, 0 0 0 2px #fff3c4, 0 0 14px rgb(255 226 138 / .7); }
+@keyframes neon { 0%, 100% { opacity: 1; } 92% { opacity: .55; } 94% { opacity: 1; } 96% { opacity: .6; } }
+
+/* Name effects. inline-block so transforms apply; they stack with a name colour. */
+.fx-glow, .fx-wobble, .fx-bounce, .fx-pulse, .fx-shimmer, .fx-rainbow, .fx-fire, .fx-crumbs { display: inline-block; position: relative; }
+.fx-glow { text-shadow: 0 0 6px rgb(243 168 59 / .9), 0 0 14px rgb(243 168 59 / .5); }
+.fx-wobble { animation: wobble 2.2s ease-in-out infinite; }
+.fx-bounce { animation: bob 1.8s ease-in-out infinite; }
+.fx-pulse { animation: pulse 1.4s ease-in-out infinite; }
+.fx-shimmer { -webkit-mask-image: linear-gradient(100deg, #000 40%, rgb(0 0 0 / .45) 50%, #000 60%); mask-image: linear-gradient(100deg, #000 40%, rgb(0 0 0 / .45) 50%, #000 60%); -webkit-mask-size: 300% 100%; mask-size: 300% 100%; animation: shimmer 2.5s linear infinite; }
+.fx-rainbow { background: linear-gradient(90deg, #ff5fa2, #ffd23f, #8ef05b, #3ad6ff, #b36bff, #ff5fa2); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: caramel 3s linear infinite; }
+.fx-fire { color: #ffd27a; text-shadow: 0 -2px 4px #ff9a1f, 0 -4px 10px #ff5a1f, 0 -8px 16px rgb(224 72 63 / .7); animation: flicker 1.2s ease-in-out infinite alternate; }
+.fx-crumbs::after { content: "· ⸱ ·"; position: absolute; left: 10%; bottom: -.6em; font-size: .7em; color: #d9a35b; animation: crumbfall 2s ease-in infinite; pointer-events: none; }
+@keyframes wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-3deg) scale(1.03); } 75% { transform: rotate(3deg) scale(.98); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.06); } 30% { transform: scale(1); } 45% { transform: scale(1.04); } }
+@keyframes shimmer { from { -webkit-mask-position: 100% 0; mask-position: 100% 0; } to { -webkit-mask-position: 0 0; mask-position: 0 0; } }
+@keyframes flicker { from { text-shadow: 0 -2px 4px #ff9a1f, 0 -4px 10px #ff5a1f, 0 -8px 16px rgb(224 72 63 / .7); } to { text-shadow: 0 -3px 6px #ffb84a, 0 -6px 14px #ff5a1f, 0 -10px 20px rgb(224 72 63 / .5); } }
+@keyframes crumbfall { from { transform: translateY(-4px); opacity: 1; } to { transform: translateY(10px); opacity: 0; } }
+
+/* Banners: a backdrop for the profile hero, the catwalk and the shop preview chip. */
+.banner-dossier { --banner: linear-gradient(135deg, #eedcae 0 60%, #d8c08a 60%); --banner-ink: #3b2f1a; }
+.banner-teatime { --banner: radial-gradient(circle at 20% 30%, rgb(255 255 255 / .25) 0 8%, transparent 9%), linear-gradient(160deg, #7a4a2a, #c98b5a); --banner-ink: #fff6ea; }
+.banner-factory { --banner: repeating-linear-gradient(90deg, #3a3f48 0 18px, #2b2f36 18px 36px); --banner-ink: #ffd23f; }
+.banner-nightshift { --banner: radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 70% 20%, #fff, transparent), radial-gradient(1px 1px at 45% 70%, #fff, transparent), radial-gradient(1px 1px at 85% 60%, #fff, transparent), linear-gradient(180deg, #0b1030, #27195a); --banner-ink: #e8e4ff; }
+.banner-barrel { --banner: repeating-linear-gradient(0deg, #8a5a32 0 14px, #6f4626 14px 16px); --banner-ink: #fff2dc; }
+.banner-picnic { --banner: repeating-linear-gradient(0deg, rgb(224 72 63 / .55) 0 12px, transparent 12px 24px), repeating-linear-gradient(90deg, rgb(224 72 63 / .55) 0 12px, #fff4ee 12px 24px); --banner-ink: #2a0d0b; }
+.banner-midnight { --banner: radial-gradient(circle at 75% 25%, rgb(255 240 180 / .55), transparent 30%), linear-gradient(200deg, #11162a, #05070f); --banner-ink: #fff0b4; }
+.banner-golden { --banner: linear-gradient(120deg, #b8860b, #ffe28a, #b8860b, #fff4c2, #b8860b); --banner-ink: #2a1a00; }
+.banner-chip { display: inline-grid; place-items: center; width: 100%; min-height: 54px; border-radius: 10px; background: var(--banner); }
+.banner-chip .avatar-frame { background-color: var(--bg); }
+.hero.has-banner, .walker.has-banner { background: var(--banner); color: var(--banner-ink); border-radius: var(--radius); padding: 20px; }
+.hero.has-banner .muted, .hero.has-banner .eyebrow, .hero.has-banner a, .hero.has-banner .agent-title,
+.walker.has-banner .muted, .walker.has-banner a, .walker.has-banner .agent-title { color: inherit; }
+.hero.has-banner .profile-stats li { background: rgb(0 0 0 / .35); color: var(--ink); }
+.banner-golden.has-banner, .banner-golden.banner-chip { background-size: 300% 100%; animation: caramel 6s linear infinite; }
+
+/* --- Mystery Tins: lucky meter ---------------------------------------------------------- */
+.pity { margin-bottom: 14px; }
+.pity-hot { color: #ffd23f; font-weight: 700; }
+.pity-bar { height: 8px; border-radius: 99px; background: var(--track); overflow: hidden; }
+.pity-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--r-uncommon), var(--r-rare), var(--r-epic)); }
+.reveal-sample { margin: 10px auto; }
+
+/* --- the Agent catwalk ------------------------------------------------------------------- */
+.catwalk { list-style: none; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.walker { position: relative; overflow: hidden; text-align: center; padding: 22px 16px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(180deg, #232832, var(--panel)); box-shadow: var(--shadow); animation: strut .6s cubic-bezier(.2, .8, .3, 1.2) both; animation-delay: calc(var(--i) * 80ms); }
+.walker.has-banner { padding: 22px 16px 16px; }
+.walker.me { outline: 2px solid var(--accent); outline-offset: 2px; }
+.spotlight { position: absolute; inset: -40% 15% auto; height: 140%; background: radial-gradient(ellipse at top, rgb(255 244 200 / .22), transparent 65%); pointer-events: none; }
+.walker-link { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; color: inherit; }
+.walker-avatar { width: 2.2em; height: 2.2em; font-size: 2.4rem; background-color: var(--bg); }
+.walker-name { font-weight: 800; font-size: 1.1rem; }
+.walker-title { position: relative; margin: 4px 0 0; font-style: italic; font-weight: 600; }
+.walker-rank { position: relative; margin: 6px 0; font-size: .85rem; opacity: .85; }
+.walker-awards { position: relative; list-style: none; padding: 0; margin: 8px 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.walker-awards li { font-size: .75rem; font-weight: 700; padding: 3px 8px; border-radius: 99px; background: #ffd23f; color: #1d1600; transform: rotate(-1.5deg); }
+.walker-awards li:nth-child(even) { background: #ff5fa2; color: #2b0016; transform: rotate(1.5deg); }
+.walker-outfit { position: relative; margin: 6px 0 0; }
+.walker-live { position: absolute; top: 10px; right: 12px; font: 700 .7rem/1 var(--mono); color: var(--green); }
+@keyframes strut { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* --- the Ten Biscuit Commandments --------------------------------------------------------- */
+.tablet { margin: 20px auto; max-width: 640px; padding: 34px 22px 22px; border-radius: 120px 120px 18px 18px; background: linear-gradient(180deg, #e9dcbc, #cdbb92); color: #3b2f1a; box-shadow: var(--shadow), inset 0 0 0 6px rgb(59 47 26 / .12); }
+.tablet-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.tablet-list li { display: grid; grid-template-columns: 2.6em 1fr auto; gap: 8px; align-items: baseline; font: 650 1rem/1.35 Georgia, "Times New Roman", serif; }
+.tablet-list .numeral { font-weight: 900; text-align: right; color: #7a5a1f; }
+.tablet-list .law-votes { font: 600 .7rem/1 var(--mono); opacity: .7; white-space: nowrap; }
+.tablet-list .vacant { opacity: .45; font-style: italic; }
+.tablet-empty { text-align: center; font: italic 1rem Georgia, serif; }
+.stack { display: flex; gap: 8px; flex-wrap: wrap; }
+.stack input { flex: 1 1 240px; }
+.commandment-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+.commandment { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.commandment.is-law { border-color: #cdbb92; }
+.commandment-body { margin: 0 0 4px; font-weight: 650; }
+.commandment-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.tag-chip { font-size: .7rem; padding: 2px 7px; border-radius: 99px; background: #cdbb92; color: #3b2f1a; }
+.btn-on { filter: saturate(.6); box-shadow: inset 0 0 0 2px var(--green); }
+
+/* --- Who Said That? ---------------------------------------------------------------------- */
+.big-quote { margin: 8px 0 18px; font: italic 600 1.25rem/1.4 Georgia, serif; }
+.guess-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.guess-btn { justify-content: center; background: var(--panel-2); color: var(--ink); box-shadow: 0 3px 0 var(--line); }
+.reveal-panel.is-right { border-color: var(--green); }
+.reveal-panel.is-wrong { border-color: var(--red); }
+.board-list { list-style: none; padding: 0; display: grid; gap: 8px; }

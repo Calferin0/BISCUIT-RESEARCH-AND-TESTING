@@ -39,6 +39,6 @@ class Presence:
         with self._lock:
             # Forget stale entries here too, so the dict can't grow forever.
             self._seen = {k: v for k, v in self._seen.items() if now - v.at <= window_s}
-            rows = [{"name": v.name, "avatar": v.avatar, "where": v.where, "editing": v.editing,
-                     "seconds_ago": int(now - v.at)} for v in self._seen.values()]
+            rows = [{"member_id": k, "name": v.name, "avatar": v.avatar, "where": v.where, "editing": v.editing,
+                     "seconds_ago": int(now - v.at)} for k, v in self._seen.items()]
         return sorted(rows, key=lambda r: (not r["editing"], r["name"].lower()))

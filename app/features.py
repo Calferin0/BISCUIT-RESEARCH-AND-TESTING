@@ -20,6 +20,8 @@ FEATURES = {
     "horoscope": ("🔮", "Daily horoscope", "Biscuit of the Day + horoscope on the dashboard"),
     "estop": ("🛑", "E-STOP button", "The work-mode panic button"),
     "court": ("⚖️", "Biscuit Court", "OBJECTION! buttons on field reports, juries and Judge Tony"),
+    "commandments": ("📜", "Biscuit Commandments", "Proposing and voting on the Ten Biscuit Commandments"),
+    "whosaid": ("🗣️", "Who Said That?", "Guess which agent wrote a field report"),
 }
 
 

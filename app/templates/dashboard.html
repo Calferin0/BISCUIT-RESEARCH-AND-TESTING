@@ -33,6 +33,9 @@
   <p class="lede">You're fully up to date. Time to go biscuit hunting.</p>
   {% endif %}
   <nav class="jump" aria-label="Dashboard tools">
+    {% if feature_on.get('whosaid', True) %}<a href="{{ url_for('views.whosaid_page') }}">🗣️ Who Said That?</a>{% endif %}
+    {% if feature_on.get('commandments', True) %}<a href="{{ url_for('views.commandments') }}">📜 Commandments</a>{% endif %}
+    <a href="{{ url_for('views.agents_page') }}">💃 Agents</a>
     {% if feature_on.dunk %}<a href="{{ url_for('views.dunk_page') }}">⏱️ Dunk-O-Meter</a>{% endif %}
     {% if feature_on.loot %}<a href="{{ url_for('views.loot_page') }}">🎁 Mystery Tins</a>{% endif %}
     <a href="{{ url_for('views.points_page') }}">🪙 Points</a>

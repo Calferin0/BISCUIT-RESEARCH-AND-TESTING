@@ -1,18 +1,18 @@
 {% extends "base.html" %}
-{% from "_agent.html" import agent with context %}
+{% from "_agent.html" import agent, sample with context %}
 {% block title %}Agent {{ m.name }}{% endblock %}
 {% block content %}
 {% set f = flair.get(m.id, {}) %}
-<section class="hero">
+<section class="hero{% if f.banner %} has-banner banner-{{ f.banner }}{% endif %}">
   <p class="eyebrow">Personnel file · agent profile{% if is_me %} · this is you{% endif %}</p>
   <div class="profile-head">
     <span class="avatar-frame{% if f.frame %} frame-{{ f.frame }}{% endif %}" aria-hidden="true">{{ m.avatar }}</span>
     <div>
-      <h1><span class="agent-name-text{% if f.color %} name-{{ f.color }}{% endif %}">Agent {{ m.name }}</span></h1>
+      <h1><span class="agent-name-text{% if f.color %} name-{{ f.color }}{% endif %}{% if f.effect %} fx-{{ f.effect }}{% endif %}">Agent {{ m.name }}</span>{% if f.badge %} <span class="flair-badge">{{ f.badge }}</span>{% endif %}</h1>
       <p class="muted">{% if f.title %}<em>{{ f.title }}</em> · {% endif %}Rank: <strong>{{ rank }}</strong></p>
     </div>
   </div>
-  {% if is_me %}<p class="small"><a href="{{ url_for('views.locker') }}">Change your look in the Locker →</a></p>{% endif %}
+  <p class="small">{% if is_me %}<a href="{{ url_for('views.locker') }}">Change your look in the Locker →</a> · {% endif %}<a href="{{ url_for('views.agents_page') }}">💃 The agent catwalk →</a></p>
 
   {% if activity %}
   <ul class="profile-stats">
@@ -32,9 +32,7 @@
   {% for i in collection %}{% set item = i.item %}
   <li class="shop-item owned{{ ' equipped' if i.on }}{% if item.loot_tier %} rarity-{{ item.loot_tier }}{% endif %}">
     <div class="shop-sample">
-      {%- if item.slot == 'title' -%}<span class="agent-name-text">Agent {{ m.name }}</span><span class="agent-title">, {{ item.value }}</span>
-      {%- elif item.slot == 'color' -%}<span class="agent-name-text name-{{ item.value }}">Agent {{ m.name }}</span>
-      {%- else -%}<span class="avatar-frame frame-{{ item.value }}">{{ m.avatar }}</span>{%- endif -%}
+      {{- sample(item, m.name, m.avatar) -}}
     </div>
     <strong>{{ item.name }}</strong>
     <p class="small muted">{{ slots[item.slot] }}{% if i.source == 'loot' %} · 🎁 {{ item.loot_tier }} loot{% endif %}{% if i.on %} · ✓ wearing{% endif %}</p>

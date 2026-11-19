@@ -33,7 +33,7 @@ def test_odds_sum_to_100_and_every_tier_has_items():
     for tier, _ in loot.ODDS:
         if tier != "common":
             assert any(i.loot_tier == tier for i in shop.CATALOGUE)
-    assert 0 < loot.expected_value() < loot.BOX_COST          # the tin always wins
+    assert loot.BOX_COST <= loot.expected_value() <= 1.2 * loot.BOX_COST   # generous, not a points printer (#10)
 
 
 def test_common_is_points_and_dupes_convert():

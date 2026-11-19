@@ -16,11 +16,12 @@ MIN_BISCUITS_FOR_SPOON = 3
 
 
 def _award(icon: str, title: str, tag: str, winners: list[str], detail: str,
-           winner_ids: list[int] | None = None) -> dict:
+           winner_ids: list[int] | None = None, agent_ids: list[int] | None = None) -> dict:
     # winner_ids: biscuit ids, parallel to winners, so the page can redact biscuits the viewer
     # hasn't rated yet (blind rating). Empty for agent awards.
+    # agent_ids: member ids, parallel to winners, for agent awards (the Agents catwalk).
     return {"icon": icon, "title": title, "tag": tag, "winners": winners, "detail": detail,
-            "winner_ids": winner_ids or []}
+            "winner_ids": winner_ids or [], "agent_ids": agent_ids or []}
 
 
 def _best(values: dict, *, highest: bool = True) -> tuple[list, float] | None:
@@ -58,7 +59,7 @@ def agent_awards(ratings: list[dict], agents: list) -> list[dict]:
         got = _best(values, highest=highest)
         if got:
             keys, best = got
-            out.append(_award(icon, title, tag, [names[k] for k in keys], fmt(best)))
+            out.append(_award(icon, title, tag, [names[k] for k in keys], fmt(best), agent_ids=list(keys)))
 
     add("🕵️", "Lead Investigator", "Has eaten the evidence. All of it.",
         {m: len(rs) for m, rs in by_agent.items()}, lambda v: f"{v} field reports filed")

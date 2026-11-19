@@ -3,8 +3,14 @@
   "updates": [
     {
       "date": "2026-11-19",
-      "title": "Bug fixes from the suggestion box",
+      "title": "Fun upgrade, plus bug fixes from the suggestion box",
       "items": [
+        "🎁 Mystery Tins are kinder: 70% of tins hold a cosmetic, new items always come before duplicates, and a Lucky meter guarantees Rare or better at least every 8th tin. On average a tin now gives back more than it costs (#10)",
+        "🗃️ 21 new tin-only cosmetics, from Uncommon to Legendary",
+        "✨ Three new ways to dress up: name effects (glow, wobble, falling crumbs, on fire…), emoji badges and profile banners. Plus more titles, colours and frames in the shop",
+        "💃 The catwalk: a new Agents tab where every agent struts in their outfit, with their rank and leaderboard awards",
+        "📜 The Ten Biscuit Commandments: propose one, vote for others', and the top ten are law (#12)",
+        "🗣️ Who Said That? A real field report quote: guess which agent wrote it. Points for correct guesses, streaks, and a leaderboard",
         "📥 New ideas land at the top of the inbox straight away, not at the bottom until someone votes (#5)",
         "🗑️ Reports on a specimen that's been removed no longer count towards anyone's report total or points. Restore the specimen and they count again (#11)"
       ]

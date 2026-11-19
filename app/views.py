@@ -13,7 +13,7 @@ from flask import (Blueprint, abort, current_app, flash, g, redirect, render_tem
                    request, send_from_directory, session, url_for)
 
 from . import (awards, cases, court, db, duel, features, fun, images, loot, points, radar, rarity, recommend, scoring,
-               shop, similarity, tags, util)
+               shop, similarity, tags, util, whosaid)
 from . import drops as drops_mod
 
 bp = Blueprint("views", __name__)
@@ -63,6 +63,9 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.tony": "Visiting Tony 🎩",
         "views.court_page": "In Biscuit Court ⚖️",
         "views.agent_profile": "Snooping on an agent's profile 🕵️",
+        "views.agents_page": "Watching the agent catwalk 💃",
+        "views.commandments": "Reading the Biscuit Commandments 📜",
+        "views.whosaid_page": "Playing Who Said That? 🗣️",
     }.get(endpoint)
 
 
@@ -661,9 +664,10 @@ def loot_page():
         if balance(me_id) < loot.BOX_COST:
             flash(f"A Mystery Tin costs {loot.BOX_COST} points. Go file some reports!", "error")
             return redirect(url_for("views.loot_page"))
-        pull = loot.open_tin(db.owned_items(me_id), random.SystemRandom())
+        dry = db.tin_dry_streak(me_id, loot.GOOD_TIERS)
+        pull = loot.open_tin(db.owned_items(me_id), random.SystemRandom(), dry)
         db.grant_loot(me_id, None if (pull.item is None or pull.duplicate) else pull.item.key,
-                      loot.BOX_COST, pull.points, "Mystery Tin")
+                      loot.BOX_COST, pull.points, "Mystery Tin", pull.tier)
         # Post/Redirect/Get, so a refresh can't open (and pay for) a second tin.
         session["loot_reveal"] = {"tier": pull.tier, "item": pull.item.key if pull.item else None,
                                   "points": pull.points, "duplicate": pull.duplicate, "quip": pull.quip}
@@ -672,11 +676,13 @@ def loot_page():
     if reveal and reveal["item"]:
         reveal["item_obj"] = shop.BY_KEY.get(reveal["item"])
     owned = db.owned_items(me_id)
+    dry = db.tin_dry_streak(me_id, loot.GOOD_TIERS)
     return render_template("loot.html", reveal=reveal, odds=loot.ODDS, cost=loot.BOX_COST,
                            balance=balance(me_id), tiers=rarity.BY_KEY, ev=loot.expected_value(),
                            refund=loot.COMMON_REFUND, dupe=loot.DUPE_POINTS,
                            collection=[i for i in shop.CATALOGUE if i.loot_tier],
-                           owned=owned)
+                           owned=owned, pity=loot.PITY, dry=dry, pity_now=loot.pity_due(dry),
+                           slots=shop.SLOTS)
 
 
 # --- Locker: your look + inventory -------------------------------------------------------
@@ -1066,3 +1072,147 @@ def upload(filename: str):
     # send_from_directory rejects ../ traversal. Photos aren't secret, so no agent check:
     # the admin page (no agent cookie on 127.0.0.1) needs them too.
     return send_from_directory(current_app.config["UPLOAD_DIR"], filename, max_age=86400)
+
+
+# --- Agents: the catwalk -------------------------------------------------------------------
+
+@bp.get("/agents")
+@agent_required
+def agents_page():
+    """Every agent in their own spotlight: outfit, rank and the awards they hold."""
+    data = db.awards_data()
+    agent_awards = awards.compute(data)["agents"]
+    held: dict[int, list[dict]] = {}
+    for a in agent_awards:
+        for mid in a["agent_ids"]:
+            held.setdefault(mid, []).append(a)
+    activity = {r["id"]: r for r in db.points_activity()}
+    equipped = db.equipped_items()
+    walkers = []
+    for m in db.catwalk_agents():
+        act = activity.get(m["id"])
+        earned = points.total(act) if act else 0
+        walkers.append({"m": m, "rank": points.rank(earned), "earned": earned,
+                        "reports": act["reports"] if act else 0,
+                        "awards": held.get(m["id"], []),
+                        "outfit": [shop.BY_KEY[k] for k in equipped.get(m["id"], []) if k in shop.BY_KEY]})
+    # Best-dressed walk first: the most flair on, then the most earned.
+    walkers.sort(key=lambda w: (-len(w["outfit"]), -w["earned"], w["m"]["name"].lower()))
+    return render_template("agents.html", walkers=walkers, slots=shop.SLOTS,
+                           online={p["member_id"] for p in _presence().live()})
+
+
+# --- the Ten Biscuit Commandments (#12) ------------------------------------------------------
+
+COMMANDMENT_MIN, COMMANDMENT_MAX, COMMANDMENTS_SHOWN = 8, 140, 10
+ROMAN = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X")
+
+
+def _control_room() -> bool:
+    return request.remote_addr in ("127.0.0.1", "::1")
+
+
+@bp.route("/commandments", methods=["GET", "POST"])
+@agent_required
+@features.required("commandments")
+def commandments():
+    if request.method == "POST":
+        body = " ".join(request.form.get("body", "").split())
+        if not COMMANDMENT_MIN <= len(body) <= COMMANDMENT_MAX:
+            flash(f"A commandment needs {COMMANDMENT_MIN}–{COMMANDMENT_MAX} characters. Carve carefully.", "error")
+        else:
+            cid = db.add_commandment(g.member["id"], body)
+            flash("Proposed! Now rally the agents to vote it into the Ten.", "celebrate")
+            return redirect(url_for("views.commandments") + f"#c{cid}")
+        return redirect(url_for("views.commandments") + "#propose")
+    rows = db.list_commandments(g.member["id"])
+    # Only backed proposals become law: an unvoted idea can't sneak into the Ten.
+    law = [r for r in rows if r["votes"] > 0][:COMMANDMENTS_SHOWN]
+    law_ids = {r["id"] for r in law}
+    return render_template("commandments.html", law=law, roman=ROMAN,
+                           proposals=[r for r in rows if r["id"] not in law_ids],
+                           max_len=COMMANDMENT_MAX, min_len=COMMANDMENT_MIN,
+                           control_room=_control_room())
+
+
+@bp.post("/commandments/<int:commandment_id>/vote")
+@agent_required
+@features.required("commandments")
+def commandment_vote(commandment_id: int):
+    c = db.get_commandment(commandment_id)
+    if c is None:
+        abort(404)
+    if c["member_id"] == g.member["id"]:
+        flash("No voting for your own commandment. Persuade the others.", "info")
+    else:
+        db.toggle_commandment_vote(commandment_id, g.member["id"])
+    return redirect(url_for("views.commandments") + f"#c{commandment_id}")
+
+
+@bp.post("/commandments/<int:commandment_id>/withdraw")
+@agent_required
+@features.required("commandments")
+def commandment_withdraw(commandment_id: int):
+    if db.withdraw_commandment(commandment_id, g.member["id"]):
+        flash("Proposal withdrawn. The tablet is blank once more.", "info")
+    else:
+        flash("Only your own proposals, and only before anyone has voted for them.", "error")
+    return redirect(url_for("views.commandments"))
+
+
+@bp.post("/commandments/<int:commandment_id>/strike")
+@agent_required
+def commandment_strike(commandment_id: int):
+    if not _control_room():
+        abort(403)
+    db.strike_commandment(commandment_id)
+    flash("Struck from the tablet.", "info")
+    return redirect(url_for("views.commandments"))
+
+
+# --- Who Said That? -----------------------------------------------------------------------
+
+def _new_whosaid_round(me_id: int):
+    today = date.today()
+    quotes = [q for q in db.whosaid_candidates(me_id, whosaid.MIN_QUOTE) if cases.can_see(q, q["mine"], today)]
+    picked = whosaid.pick_round(quotes, db.active_member_ids(), me_id, random.SystemRandom())
+    if picked is None:
+        return None
+    quote, options = picked
+    db.start_whosaid(me_id, quote["id"], options)
+    return db.open_whosaid(me_id)
+
+
+@bp.route("/whosaid", methods=["GET", "POST"])
+@agent_required
+@features.required("whosaid")
+def whosaid_page():
+    me_id = g.member["id"]
+    if request.method == "POST":
+        rnd = db.open_whosaid(me_id)
+        try:
+            guess = int(request.form.get("guess", ""))
+            round_id = int(request.form.get("round", ""))
+        except ValueError:
+            abort(400)
+        if rnd is None or rnd["id"] != round_id:
+            flash("That round's already been played. Here's a fresh quote.", "info")
+            return redirect(url_for("views.whosaid_page"))
+        options = [int(x) for x in rnd["options"].split(",")]
+        if guess not in options:
+            abort(400)
+        correct = guess == rnd["author_id"]
+        reward = whosaid.reward_for(correct, db.whosaid_rewarded_today(me_id))
+        if db.answer_whosaid(rnd["id"], me_id, guess, correct, reward):
+            session["whosaid_result"] = {"correct": correct, "reward": reward, "author": rnd["author_id"],
+                                         "biscuit": rnd["biscuit_name"], "quote": rnd["comment"]}
+        return redirect(url_for("views.whosaid_page") + "#result")
+    result = session.pop("whosaid_result", None)
+    rnd = db.open_whosaid(me_id) or _new_whosaid_round(me_id)
+    members = {m["id"]: m for m in db.list_members()}
+    current, best = whosaid.streaks(db.whosaid_history(me_id))
+    return render_template("whosaid.html", rnd=rnd, result=result, members=members,
+                           options=[members[int(x)] for x in rnd["options"].split(",")] if rnd else [],
+                           streak=current, best=best, board=db.whosaid_board(),
+                           earned_today=db.whosaid_rewarded_today(me_id),
+                           reward=whosaid.REWARD, cap=whosaid.DAILY_CAP)

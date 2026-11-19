@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_agent.html" import agent with context %}
+{% from "_agent.html" import agent, sample with context %}
 {% block title %}Your Locker{% endblock %}
 {% block content %}
 <section class="hero">
@@ -50,9 +50,7 @@
   {% for i in by_slot[slot] %}{% set item = i.item %}
   <li class="shop-item owned{{ ' equipped' if i.on }}{% if item.loot_tier %} rarity-{{ item.loot_tier }}{% endif %}">
     <div class="shop-sample">
-      {%- if slot == 'title' -%}<span class="agent-name-text">Agent {{ me.name }}</span><span class="agent-title">, {{ item.value }}</span>
-      {%- elif slot == 'color' -%}<span class="agent-name-text name-{{ item.value }}">Agent {{ me.name }}</span>
-      {%- else -%}<span class="avatar-frame frame-{{ item.value }}">{{ me.avatar }}</span>{%- endif -%}
+      {{- sample(item, me.name, me.avatar) -}}
     </div>
     <strong>{{ item.name }}</strong>
     <p class="small">
