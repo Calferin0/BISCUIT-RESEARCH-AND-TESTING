@@ -2,6 +2,14 @@
   "_comment": "Drives the WORKING ON IT page. Re-read on every request, so edits show without a restart. Public repo: no teammate names here; cite suggestions by #id. status: now | next | later | done",
   "updates": [
     {
+      "date": "2026-11-19",
+      "title": "Bug fixes from the suggestion box",
+      "items": [
+        "📥 New ideas land at the top of the inbox straight away, not at the bottom until someone votes (#5)",
+        "🗑️ Reports on a specimen that's been removed no longer count towards anyone's report total or points. Restore the specimen and they count again (#11)"
+      ]
+    },
+    {
       "date": "2026-11-18",
       "title": "From the suggestion box",
       "items": [

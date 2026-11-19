@@ -286,6 +286,9 @@ ALTER TABLE biscuits ADD COLUMN image_source TEXT;
 
 CATS_IN = "(" + ", ".join(f"'{k}'" for k in CATEGORY_KEYS) + ")"
 SCORES_JOIN = f"LEFT JOIN scores s ON s.rating_id = r.id AND s.category IN {CATS_IN}"
+# Reports on a removed specimen stay in the DB (D6: soft delete, so restoring it brings them
+# back) but don't count towards anyone's totals or points (#11).
+LIVE_BISCUITS = "SELECT id FROM biscuits WHERE active = 1"
 
 
 # --- connection lifecycle ---------------------------------------------------------------
@@ -593,7 +596,7 @@ def agent_stats() -> list[sqlite3.Row]:
         f"""SELECT m.id, m.name, m.avatar, COUNT(DISTINCT r.id) AS n, AVG(s.value) AS given,
                    (SELECT COUNT(*) FROM biscuits b WHERE b.added_by = m.id AND b.active = 1) AS added
             FROM members m
-            LEFT JOIN ratings r ON r.member_id = m.id
+            LEFT JOIN ratings r ON r.member_id = m.id AND r.biscuit_id IN ({LIVE_BISCUITS})
             {SCORES_JOIN}
             WHERE m.active = 1
             GROUP BY m.id
@@ -640,7 +643,9 @@ def add_suggestion(member_id: int, kind: str, body: str) -> int:
 
 
 def list_suggestions(viewer_id: int | None = None, statuses: tuple[str, ...] | None = None) -> list[sqlite3.Row]:
-    """Suggestions with author, +1 count and whether the viewer has voted. Busiest work first."""
+    """Suggestions with author, +1 count and whether the viewer has voted. Busiest work first.
+    The inbox is newest first (#5): ranking it by +1s sank every new idea, at 0 votes, to the
+    bottom until someone voted. Planned/building/shipped stay ranked by +1s."""
     where, params = "", [viewer_id]
     if statuses:
         where = f"WHERE s.status IN ({', '.join('?' for _ in statuses)})"
@@ -651,7 +656,9 @@ def list_suggestions(viewer_id: int | None = None, statuses: tuple[str, ...] | N
                    EXISTS (SELECT 1 FROM suggestion_votes v WHERE v.suggestion_id = s.id AND v.member_id = ?) AS voted
             FROM suggestions s JOIN members m ON m.id = s.member_id
             {where}
-            ORDER BY {_STATUS_ORDER}, votes DESC, s.created_at DESC""",
+            ORDER BY {_STATUS_ORDER},
+                     CASE WHEN s.status = 'new' THEN 0 ELSE votes END DESC,
+                     s.id DESC""",
         params,
     ).fetchall()
 
@@ -838,11 +845,14 @@ def points_activity(member_id: int | None = None) -> list[sqlite3.Row]:
     where, params = ("AND m.id = ?", (member_id,)) if member_id is not None else ("", ())
     return get_db().execute(
         f"""SELECT m.id, m.name, m.avatar,
-              (SELECT COUNT(*) FROM ratings r WHERE r.member_id = m.id) AS reports,
               (SELECT COUNT(*) FROM ratings r WHERE r.member_id = m.id
+                 AND r.biscuit_id IN ({LIVE_BISCUITS})) AS reports,
+              (SELECT COUNT(*) FROM ratings r WHERE r.member_id = m.id
+                 AND r.biscuit_id IN ({LIVE_BISCUITS})
                  AND length(trim(r.comment)) >= {NOTE_MIN_CHARS}) AS notes,
               (SELECT COUNT(*) FROM report_votes v JOIN ratings r ON r.id = v.rating_id
-                 WHERE r.member_id = m.id AND v.member_id != m.id) AS thumbs,
+                 WHERE r.member_id = m.id AND v.member_id != m.id
+                 AND r.biscuit_id IN ({LIVE_BISCUITS})) AS thumbs,
               (SELECT COUNT(*) FROM biscuits b WHERE b.added_by = m.id AND b.active = 1) AS specimens,
               (SELECT COUNT(*) FROM drops d WHERE d.added_by = m.id AND d.active = 1) AS drops,
               (SELECT COUNT(*) FROM suggestions s WHERE s.member_id = m.id) AS suggestions,
