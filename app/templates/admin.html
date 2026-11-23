@@ -90,11 +90,12 @@
     <li class="agent-row{{ ' retired' if not m.active }}">
       {% if m.qr %}<img class="qr" src="{{ m.qr }}" alt="QR code for {{ m.name }}'s join link">{% else %}<div class="qr qr-off">Retired</div>{% endif %}
       <div class="agent-info">
-        <p><strong>{{ m.avatar }} {{ m.name }}</strong> <span class="muted small">{{ m.n }} report{{ 's' if m.n != 1 }}</span></p>
+        <p><strong>{{ m.avatar }} {{ m.name }}</strong> <span class="muted small">{{ m.n }} report{{ 's' if m.n != 1 }}{% if m.birthday %} · 🎂 {{ bday_label(m.birthday) }}{% endif %}</span></p>
         <details class="edit-agent"><summary class="small">✏️ Edit</summary>
           <form method="post" action="{{ url_for('admin.edit_member', member_id=m.id) }}" class="rename-form">
             <input name="name" value="{{ m.name }}" maxlength="40" aria-label="Agent name">
             <select name="avatar" aria-label="Avatar">{% for e in avatars %}<option{% if e == m.avatar %} selected{% endif %}>{{ e }}</option>{% endfor %}</select>
+            <input name="birthday" value="{{ bday_value(m.birthday) }}" placeholder="🎂 dd/mm" size="6" maxlength="5" aria-label="Birthday, day/month">
             <button class="btn btn-small btn-ghost" type="submit">✓</button>
           </form>
         </details>

@@ -254,7 +254,75 @@ if (tinForm) {
   });
 }
 const revealEl = document.querySelector("[data-reveal]");
-if (revealEl && /rarity-(rare|epic|legendary)/.test(revealEl.className)) crumbShower();
+const reelEl = document.querySelector("[data-reel]");
+function showReveal() {
+  document.documentElement.classList.remove("reel-pending");
+  if (reelEl) reelEl.classList.add("done");
+  if (revealEl && /rarity-(rare|epic|legendary)/.test(revealEl.className)) crumbShower();
+}
+// Case-opening reel: slide the strip so the prize card (data-stop) lands under the marker,
+// easing out like a spinner. Theatre only: the server settled the prize before this page loaded.
+if (reelEl && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  const track = reelEl.querySelector("[data-reel-track]");
+  const windowEl = reelEl.querySelector(".case-window");
+  const win = track.children[Number(reelEl.dataset.stop)];
+  const centreOn = (jitter) => win.offsetLeft + win.offsetWidth / 2 - windowEl.clientWidth / 2 + jitter;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    win.classList.add("won");
+    setTimeout(showReveal, 450);
+  };
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const jitter = (Math.random() - 0.5) * win.offsetWidth * 0.7;   // don't always stop dead centre
+    track.style.transition = "transform 6s cubic-bezier(.08, .7, .12, 1)";
+    track.style.transform = `translateX(${-centreOn(jitter)}px)`;
+  }));
+  track.addEventListener("transitionend", finish);
+  reelEl.querySelector("[data-reel-skip]").addEventListener("click", () => {
+    track.style.transition = "none";
+    track.style.transform = `translateX(${-centreOn(0)}px)`;
+    finish();
+  });
+  setTimeout(finish, 7500);   // belt and braces if transitionend never fires (background tab)
+} else if (revealEl) {
+  showReveal();
+}
+
+// Easter egg: on about 1 page in 100, Tony cartwheels across the screen with a biscuit thought.
+// Add ?tony=1 to any URL to summon him on purpose.
+const TONY_QUIPS = [
+  "Dunk responsibly.",
+  "A custard cream a day keeps the deadlines away.",
+  "Has anyone seen my Hobnob?",
+  "I'm not spinning. The office is.",
+  "Rich Tea is a lifestyle choice.",
+  "Biscuit break? It's always biscuit break.",
+  "Never trust a biscuit that won't dunk.",
+  "Crumbs are just biscuits on their way somewhere.",
+  "Who moved the tin?!",
+  "Is a Jaffa Cake a biscuit? Don't make me file a report.",
+  "Leaving crumbs is a valid form of signature.",
+  "Seven seconds in tea. No more. No less.",
+];
+if ((Math.random() < 0.01 || /[?&]tony=1\b/.test(location.search))
+    && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  const runner = document.createElement("div");
+  runner.className = "tony-run";
+  runner.setAttribute("aria-hidden", "true");
+  const src = document.body.dataset.tony;
+  const bubble = document.createElement("span");
+  bubble.className = "tony-bubble";
+  bubble.textContent = TONY_QUIPS[Math.floor(Math.random() * TONY_QUIPS.length)];
+  const spinner = document.createElement(src ? "img" : "span");
+  spinner.className = "tony-spin";
+  if (src) { spinner.src = src; spinner.alt = ""; } else { spinner.textContent = "🍪"; }
+  runner.append(bubble, spinner);
+  runner.style.top = `${15 + Math.random() * 55}vh`;
+  runner.addEventListener("animationend", (e) => { if (e.target === runner) runner.remove(); });
+  setTimeout(() => document.body.appendChild(runner), 800);
+}
 
 // Dunk-O-Meter: one button. DUNK starts the clock, SPLAT stops it and submits.
 const dunkForm = document.querySelector("[data-dunk-form]");

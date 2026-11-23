@@ -9,10 +9,7 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-18):** live BRT is on schema v11 and current with `main`: everything through
-Tony, the 2026-11-18 batches (suggestions #1 #2 #3 #4 #6 #7 #8), Biscuit Court (#9, D25), the
-Court nav badge and suggestion credits (last deploy 2026-11-18, 15:28). 200 tests pass. #4's fix
-is inferred, not seen on a phone. Open: #10 (Mystery Tin odds), CF's call. **Deploys need CF's explicit OK each time**: the auto-mode
+**Status (2026-11-23):** live BRT is on schema v12 (deploy 2026-11-23, 09:12): everything through the 2026-11-19 batch (#5 #10 #11 #12, catwalk, flair slots, Who Said That?). Branch `weekly/2026-11-23` (schema v13: feature strip, birthdays, #13 #14 #15) is built and tested, not yet deployed. **Deploys need CF's explicit OK each time**: the auto-mode
 classifier blocks unapproved production deploys. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
@@ -178,6 +175,24 @@ internal goes in it (see `.gitignore`).
   the player can already see (D10 via `cases.can_see`). The answer stays in `whosaid_rounds`,
   never the page or cookie. +3 per correct guess via the ledger, capped at 15/day; the guarded
   UPDATE settles once. Switch `whosaid`.
+- **D33: feature strip** (2026-11-23, CF: "make unique features obvious in the top bar"). A second,
+  sideways-scrolling row of chips under the main tabs for BRT's specials. Each chip respects its
+  feature switch. Add new specials there, not to the main tabs (those are full on phones).
+- **D34: birthday tracker** (schema v13, `app/birthdays.py`, pure). `members.birthday` = 'MM-DD',
+  **never a year, never in git** (public repo; CF's list was entered into the live DB only). Input
+  is UK day-first. 29 Feb is celebrated on 28 Feb in other years. On the day: a banner on every
+  page, a 🎂 by the name (`birthday_ids` in the template context) and a once-a-year ledger gift
+  (`db.gift_once`, ref `birthday:<year>`). Agents set their own; admin sets anyone's. Switch `birthdays`.
+- **Who Said That? repeats** (#14/#15): `whosaid.choose_quote` shows unseen quotes first, then only
+  the stalest half. The pool is small (38 quotable reports on 2026-11-23), so repeats can't vanish.
+- **Case-opening reel** (2026-11-23, CF: "like CS:GO cases", the mechanic only, no CS:GO names or art).
+  `loot.build_reel` puts the real prize at `REEL_STOP` among fillers rolled with the same `ODDS`;
+  it's built on the GET *after* the POST settled the prize, so it can never change the outcome.
+  JS slides it under the marker; reduced motion or no JS = straight to the result.
+- **Tony easter egg:** `brt.js` sends Tony spinning across ~1 in 100 page loads with a quip
+  (`?tony=1` forces it). Skipped under reduced motion, which includes Windows with "Animation
+  effects" off: the browser pane on CF's PC reports reduced motion, so test on a phone.
+- **Radar and VS switched off** in the live control room (2026-11-23, CF). Data intact (D24).
 - **Next build:** suggestions from the weekly loop (`WEEKLY.md`).
 
 ## Architecture

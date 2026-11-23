@@ -14,13 +14,24 @@ REWARD = 3            # points per correct guess...
 DAILY_CAP = 15        # ...up to this many per day
 
 
+def choose_quote(quotes: list, seen: dict[int, int], rng: random.Random):
+    """Fresh quotes first (#14/#15: they repeated a lot). Once you've seen every quote, pick from
+    the half you saw longest ago, so a repeat is always the stalest one, never the last round.
+    seen: {rating id: id of the latest round that used it} for this player."""
+    fresh = [q for q in quotes if q["id"] not in seen]
+    if fresh:
+        return rng.choice(fresh)
+    stalest = sorted(quotes, key=lambda q: seen[q["id"]])
+    return rng.choice(stalest[:max(1, len(stalest) // 2)])
+
+
 def pick_round(quotes: list, agent_ids: list[int], player_id: int,
-               rng: random.Random) -> tuple[object, list[int]] | None:
-    """quotes: rows with `member_id` (already filtered for visibility). Returns (quote, options)
-    or None when there's nothing to play: no quotes, or nobody to use as a decoy."""
+               rng: random.Random, seen: dict[int, int] | None = None) -> tuple[object, list[int]] | None:
+    """quotes: rows with `id` and `member_id` (already filtered for visibility). Returns
+    (quote, options) or None when there's nothing to play: no quotes, or nobody to use as a decoy."""
     if not quotes:
         return None
-    quote = rng.choice(quotes)
+    quote = choose_quote(quotes, seen or {}, rng)
     decoys = [a for a in agent_ids if a not in (quote["member_id"], player_id)]
     if not decoys:
         return None

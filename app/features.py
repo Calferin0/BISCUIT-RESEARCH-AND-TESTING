@@ -22,6 +22,7 @@ FEATURES = {
     "court": ("⚖️", "Biscuit Court", "OBJECTION! buttons on field reports, juries and Judge Tony"),
     "commandments": ("📜", "Biscuit Commandments", "Proposing and voting on the Ten Biscuit Commandments"),
     "whosaid": ("🗣️", "Who Said That?", "Guess which agent wrote a field report"),
+    "birthdays": ("🎂", "Birthday tracker", "Birthday page, on-the-day banner, cake by names and the birthday gift"),
 }
 
 

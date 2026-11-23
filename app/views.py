@@ -12,6 +12,7 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, flash, g, redirect, render_template,
                    request, send_from_directory, session, url_for)
 
+from . import birthdays as bdays
 from . import (awards, cases, court, db, duel, features, fun, images, loot, points, radar, rarity, recommend, scoring,
                shop, similarity, tags, util, whosaid)
 from . import drops as drops_mod
@@ -66,6 +67,7 @@ def _describe(endpoint: str | None, args: dict) -> str | None:
         "views.agents_page": "Watching the agent catwalk 💃",
         "views.commandments": "Reading the Biscuit Commandments 📜",
         "views.whosaid_page": "Playing Who Said That? 🗣️",
+        "views.birthdays_page": "Checking whose birthday is next 🎂",
     }.get(endpoint)
 
 
@@ -671,17 +673,19 @@ def loot_page():
         # Post/Redirect/Get, so a refresh can't open (and pay for) a second tin.
         session["loot_reveal"] = {"tier": pull.tier, "item": pull.item.key if pull.item else None,
                                   "points": pull.points, "duplicate": pull.duplicate, "quip": pull.quip}
-        return redirect(url_for("views.loot_page") + "#reveal")
+        return redirect(url_for("views.loot_page") + "#reel")   # land on the spinning reel
     reveal = session.pop("loot_reveal", None)
     if reveal and reveal["item"]:
         reveal["item_obj"] = shop.BY_KEY.get(reveal["item"])
+    if reveal:  # the case-opening reel: theatre only, the prize was settled on POST
+        reveal["reel"] = loot.build_reel(reveal["tier"], reveal.get("item_obj"), reveal["points"], random.Random())
     owned = db.owned_items(me_id)
     dry = db.tin_dry_streak(me_id, loot.GOOD_TIERS)
     return render_template("loot.html", reveal=reveal, odds=loot.ODDS, cost=loot.BOX_COST,
                            balance=balance(me_id), tiers=rarity.BY_KEY, ev=loot.expected_value(),
                            refund=loot.COMMON_REFUND, dupe=loot.DUPE_POINTS,
                            collection=[i for i in shop.CATALOGUE if i.loot_tier],
-                           owned=owned, pity=loot.PITY, dry=dry, pity_now=loot.pity_due(dry),
+                           owned=owned, pity=loot.PITY, dry=dry, pity_now=loot.pity_due(dry), reel_stop=loot.REEL_STOP,
                            slots=shop.SLOTS)
 
 
@@ -1175,7 +1179,8 @@ def commandment_strike(commandment_id: int):
 def _new_whosaid_round(me_id: int):
     today = date.today()
     quotes = [q for q in db.whosaid_candidates(me_id, whosaid.MIN_QUOTE) if cases.can_see(q, q["mine"], today)]
-    picked = whosaid.pick_round(quotes, db.active_member_ids(), me_id, random.SystemRandom())
+    picked = whosaid.pick_round(quotes, db.active_member_ids(), me_id, random.SystemRandom(),
+                                db.whosaid_seen(me_id))
     if picked is None:
         return None
     quote, options = picked
@@ -1216,3 +1221,40 @@ def whosaid_page():
                            streak=current, best=best, board=db.whosaid_board(),
                            earned_today=db.whosaid_rewarded_today(me_id),
                            reward=whosaid.REWARD, cap=whosaid.DAILY_CAP)
+
+
+# --- R&D birthday tracker ------------------------------------------------------------------
+
+@bp.before_request   # blueprint-level: runs after the app-level load_agent() has set g.member
+def birthday_gift() -> None:
+    """On your birthday, the first page you open drops a gift in your tin (once a year)."""
+    me = g.get("member")
+    if me is None or request.endpoint in (None, "static") or not features.enabled("birthdays"):
+        return
+    today = date.today()
+    if bdays.is_today(me["birthday"], today) and db.gift_once(
+            me["id"], bdays.GIFT, "🎂 Happy birthday from BRT", f"birthday:{today.year}"):
+        flash(f"🎂 Happy birthday, Agent {me['name']}! +{bdays.GIFT} Biscuit Points from the team.", "celebrate")
+
+
+@bp.route("/birthdays", methods=["GET", "POST"])
+@agent_required
+@features.required("birthdays")
+def birthdays_page():
+    me = g.member
+    if request.method == "POST":
+        raw = request.form.get("birthday", "").strip()
+        if not raw:
+            db.set_birthday(me["id"], None)
+            flash("Birthday removed. Your secret is safe.", "info")
+        elif (mmdd := bdays.parse(raw)) is None:
+            flash("That's not a date. Use day/month, like 19/11.", "error")
+        else:
+            db.set_birthday(me["id"], mmdd)
+            flash(f"Birthday saved: {bdays.label(mmdd)}. Cake has been scheduled. 🎂", "celebrate")
+        return redirect(url_for("views.birthdays_page"))
+    today = date.today()
+    rows = db.birthday_rows()
+    return render_template("birthdays.html", upcoming=bdays.upcoming(rows, today),
+                           missing=[r for r in rows if not r["birthday"]],
+                           mine=bdays.form_value(me["birthday"]), gift=bdays.GIFT, today=today)

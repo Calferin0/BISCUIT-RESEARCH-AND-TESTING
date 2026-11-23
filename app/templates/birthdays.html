@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_agent.html" import agent with context %}
+{% block title %}Birthdays{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">R&amp;D personnel · cake logistics division</p>
+  <h1>🎂 Birthday Tracker</h1>
+  <p class="lede">Whose turn is it to bring the biscuits? On your birthday BRT puts a cake by your name, a banner on every page, and +{{ gift }} Biscuit Points in your tin.</p>
+</section>
+
+{% set next = upcoming | first %}
+{% if next %}
+<section class="panel birthday-next{% if next.days == 0 %} is-today{% endif %}">
+  <p class="eyebrow">{% if next.days == 0 %}Today!{% else %}Next up{% endif %}</p>
+  <h2>{{ agent(next.id, next.name, next.avatar, link=true) }}</h2>
+  <p class="birthday-count">{% if next.days == 0 %}🎉 Happy birthday!{% elif next.days == 1 %}Tomorrow · {{ next.label }}{% else %}in <strong>{{ next.days }}</strong> days · {{ next.label }}{% endif %}</p>
+</section>
+{% endif %}
+
+{% if upcoming %}
+<h2 class="section-title">📅 Coming up</h2>
+<ol class="birthday-list">
+  {% for b in upcoming %}
+  <li class="{{ 'is-today' if b.days == 0 }}{{ ' is-soon' if 0 < b.days <= 7 }}">
+    <span class="birthday-date mono">{{ b.label }}</span>
+    <span class="birthday-who">{{ agent(b.id, b.name, b.avatar, link=true) }}</span>
+    <span class="birthday-days small">{% if b.days == 0 %}🎂 today{% elif b.days == 1 %}tomorrow{% else %}{{ b.days }} days{% endif %}</span>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="muted">No birthdays on file yet.</p>
+{% endif %}
+
+{% if missing %}
+<p class="small muted">No birthday on file: {% for m in missing %}{{ m.avatar }} {{ m.name }}{{ ", " if not loop.last }}{% endfor %}.</p>
+{% endif %}
+
+<section class="panel" id="mine">
+  <h2>🗓️ Your birthday</h2>
+  <p class="small muted">Day and month only: no year, so your age stays classified. Leave it blank to remove it.</p>
+  <form method="post" class="stack">
+    <label for="birthday" class="sr-only">Your birthday, day/month</label>
+    <input id="birthday" name="birthday" value="{{ mine }}" placeholder="dd/mm, e.g. 19/11" maxlength="5" inputmode="numeric">
+    <button class="btn" type="submit">Save</button>
+  </form>
+</section>
+{% endblock %}

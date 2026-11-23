@@ -78,3 +78,33 @@ def expected_value() -> float:
         value = sum(COMMON_REFUND) / 2 if tier == "common" else DUPE_POINTS[tier]
         ev += pct / 100 * value
     return ev
+
+
+# --- the case-opening reel (2026-11-23) -------------------------------------------------------
+# Pure theatre: the prize is decided by open_tin() before the page loads. The reel is a strip of
+# random fillers rolled with the same ODDS, with the real prize placed at REEL_STOP, so the
+# animation always lands on what you actually won.
+
+REEL_LENGTH = 48
+REEL_STOP = 40
+SLOT_ICONS = {"title": "🏷️", "color": "🎨", "frame": "🖼️", "effect": "✨", "banner": "🎏"}
+
+
+def reel_card(tier: str, item: shop.Item | None, points: int | None = None) -> dict:
+    if item is None:
+        return {"tier": tier, "icon": "🪙", "name": f"+{points} points" if points else "Points"}
+    icon = item.value if item.slot == "badge" else SLOT_ICONS.get(item.slot, "🎁")
+    return {"tier": tier, "icon": icon, "name": item.name}
+
+
+def build_reel(tier: str, item: shop.Item | None, points: int, rng: random.Random) -> list[dict]:
+    """REEL_LENGTH cards; the card at REEL_STOP is the real prize."""
+    cards = []
+    for i in range(REEL_LENGTH):
+        if i == REEL_STOP:
+            cards.append(reel_card(tier, item, points))
+            continue
+        t = roll_tier(rng)
+        pool = [x for x in shop.CATALOGUE if x.loot_tier == t]
+        cards.append(reel_card(t, rng.choice(pool) if pool else None))
+    return cards

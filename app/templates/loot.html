@@ -11,6 +11,20 @@
 
 {% if reveal %}
 {% set t = tiers[reveal.tier] %}
+{#- The case-opening reel. With JS it spins and lands on the prize, then the reveal card shows.
+    Without JS (or with reduced motion) the reveal card is simply there. -#}
+<script>document.documentElement.classList.add("reel-pending");</script>
+<section class="case-reel" id="reel" data-reel data-stop="{{ reel_stop }}" aria-hidden="true">
+  <div class="case-window">
+    <div class="case-marker"></div>
+    <ol class="case-track" data-reel-track>
+      {% for c in reveal.reel %}
+      <li class="case-card rarity-{{ c.tier }}"><span class="case-icon">{{ c.icon }}</span><span class="case-name">{{ c.name }}</span></li>
+      {% endfor %}
+    </ol>
+  </div>
+  <button type="button" class="btn btn-small btn-ghost case-skip" data-reel-skip>Skip ⏩</button>
+</section>
 <section class="reveal panel rarity-{{ reveal.tier }}" id="reveal" data-reveal>
   <div class="reveal-burst" aria-hidden="true"></div>
   <p class="eyebrow reveal-tier">{{ t.icon }} {{ t.label }}</p>

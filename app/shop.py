@@ -71,6 +71,21 @@ CATALOGUE: tuple[Item, ...] = (
     Item("banner-teatime", "banner", "Tea Time", 60, "teatime", "Steam, saucers, a plate of possibilities."),
     Item("banner-factory", "banner", "Biscuit Factory", 90, "factory", "Conveyor belts as far as the eye can see."),
     Item("banner-nightshift", "banner", "Night Shift", 120, "nightshift", "Starry skies over the snack drawer."),
+    # ---- 2026-11-23: the coffee corner (#13) ----
+    Item("title-barista", "title", "Office Barista", 50, "Office Barista", "Knows everyone's order. Judges silently."),
+    Item("title-flat-white-knight", "title", "Flat White Knight", 80, "the Flat White Knight", "Sworn protector of the oat milk."),
+    Item("title-bean-counter", "title", "Bean Counter", 60, "Bean Counter", "Not an accountant. Just really into beans."),
+    Item("color-espresso", "color", "Espresso", 40, "espresso", "Dark, short and to the point."),
+    Item("color-latte", "color", "Latte", 40, "latte", "Milky, mellow, inoffensive."),
+    Item("color-caramel-macchiato", "color", "Caramel Macchiato", 70, "macchiato", "Layered. Sweet. A bit extra."),
+    Item("frame-coffee-ring", "frame", "Coffee Ring", 60, "coffeering", "The mug stain on every meeting agenda."),
+    Item("frame-latte-art", "frame", "Latte Art", 100, "latteart", "A foam heart, framing your face."),
+    Item("fx-steam", "effect", "Fresh Brew Steam", 90, "steam", "Your name, steaming like a fresh pot."),
+    Item("fx-jitters", "effect", "Caffeine Jitters", 110, "jitters", "Fourth cup. Vibrating slightly."),
+    Item("badge-beans", "badge", "Bean Badge", 25, "🫘", "Whole bean, never pre-ground."),
+    Item("badge-iced", "badge", "Iced Coffee Badge", 30, "🧋", "Even in November."),
+    Item("banner-coffeeshop", "banner", "Corner Coffee Shop", 90, "coffeeshop", "Chalkboard menu, warm lights, a queue."),
+    Item("banner-espresso", "banner", "Espresso Crema", 120, "crema", "A swirl of golden crema, edge to edge."),
     # ---- lootbox exclusives (cost 0: you can only get them from a Mystery Tin) ----
     Item("loot-title-crumb-collector", "title", "Crumb Collector", 0, "Crumb Collector",
          "Hoovers up the bits nobody else wants.", "uncommon"),
@@ -111,6 +126,11 @@ CATALOGUE: tuple[Item, ...] = (
     Item("loot-badge-trophy", "badge", "Golden Tin Badge", 0, "🏆", "Champion of the cupboard.", "legendary"),
     Item("loot-banner-golden", "banner", "Golden Ticket", 0, "golden", "A shimmering gold banner. Wonka who?", "legendary"),
     Item("loot-fx-fire", "effect", "On Fire", 0, "fire", "Your name, actually on fire. Hot from the oven.", "legendary"),
+    # 2026-11-23 coffee restock (#13)
+    Item("loot-title-decaf", "title", "Suspiciously Decaf", 0, "Suspiciously Decaf", "Nobody trusts them. Calm, though.", "uncommon"),
+    Item("loot-color-mocha", "color", "Mocha", 0, "mocha", "Coffee and chocolate: the best of both.", "rare"),
+    Item("loot-title-cafetiere", "title", "Keeper of the Cafetière", 0, "Keeper of the Cafetière", "Plunges with ceremony.", "epic"),
+    Item("loot-badge-golden-bean", "badge", "Golden Bean Badge", 0, "☕✨", "The rarest roast in the building.", "legendary"),
 )
 
 BY_KEY: dict[str, Item] = {i.key: i for i in CATALOGUE}

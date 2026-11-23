@@ -16,7 +16,7 @@
 {%- set flashes = get_flashed_messages(with_categories=true) %}
 {%- set ns = namespace(party=false) %}
 {%- for cat, _ in flashes %}{% if cat == 'celebrate' %}{% set ns.party = true %}{% endif %}{% endfor %}
-<body{% if ns.party %} data-celebrate{% endif %}{% if me %} data-ping-url="{{ url_for('views.ping') }}"{% endif %}>
+<body{% if ns.party %} data-celebrate{% endif %}{% if me %} data-ping-url="{{ url_for('views.ping') }}"{% endif %}{% if mascot %} data-tony="{{ mascot.small or mascot.img }}"{% endif %}>
 <div class="ticker" aria-hidden="true">
   <div class="ticker-track">
     {%- for _ in range(2) %}
@@ -61,8 +61,33 @@
     <a href="{{ url_for('views.suggestions') }}"{% if request.endpoint in ('views.suggestions', 'views.working_on_it') %} aria-current="page"{% endif %}>Ideas</a>
     <a class="btn btn-small" href="{{ url_for('views.add_biscuit') }}" aria-label="Log a new specimen">+ <span class="wide-only">Specimen</span><span class="narrow-only">Add</span></a>
   </nav>
+  {#- The fun stuff, one tap away: BRT's own features as a scrolling strip of chips under the tabs. -#}
+  {%- set ep = request.endpoint %}
+  <nav class="feature-strip" aria-label="BRT specials">
+    {%- if feature_on.get('commandments', True) %}<a href="{{ url_for('views.commandments') }}"{% if ep == 'views.commandments' %} aria-current="page"{% endif %}>📜 Commandments</a>{% endif %}
+    {%- if feature_on.get('whosaid', True) %}<a href="{{ url_for('views.whosaid_page') }}"{% if ep == 'views.whosaid_page' %} aria-current="page"{% endif %}>🗣️ Who Said That?</a>{% endif %}
+    {%- if feature_on.get('birthdays', True) %}<a href="{{ url_for('views.birthdays_page') }}"{% if ep == 'views.birthdays_page' %} aria-current="page"{% endif %}>🎂 Birthdays{% if birthday_today %} <span class="nav-count" aria-label="{{ birthday_today | length }} today">{{ birthday_today | length }}</span>{% endif %}</a>{% endif %}
+    {%- if feature_on.loot %}<a href="{{ url_for('views.loot_page') }}"{% if ep == 'views.loot_page' %} aria-current="page"{% endif %}>🎁 Mystery Tins</a>{% endif %}
+    {%- if feature_on.dunk %}<a href="{{ url_for('views.dunk_page') }}"{% if ep == 'views.dunk_page' %} aria-current="page"{% endif %}>⏱️ Dunk-O-Meter</a>{% endif %}
+    {%- if feature_on.shop %}<a href="{{ url_for('views.shop_page') }}"{% if ep == 'views.shop_page' %} aria-current="page"{% endif %}>🛍️ Shop</a>{% endif %}
+    <a href="{{ url_for('views.locker') }}"{% if ep == 'views.locker' %} aria-current="page"{% endif %}>🎒 Locker</a>
+    {%- if mascot %}<a href="{{ url_for('views.tony') }}"{% if ep == 'views.tony' %} aria-current="page"{% endif %}>🎩 Tony</a>{% endif %}
+  </nav>
   {% endif %}
 </header>
+
+{% if birthday_today %}
+<div class="birthday-banner" role="status">
+  <span class="birthday-cake" aria-hidden="true">🎂</span>
+  <span>
+  {%- for b in birthday_today %}
+  {%- if b.id == me.id %}<strong>Happy birthday, Agent {{ b.name }}!</strong> The whole division salutes you.
+  {%- else %}It's <strong>Agent {{ b.name }}</strong>'s birthday today! {{ b.avatar }}{% endif %}{{ " · " if not loop.last }}
+  {%- endfor -%}
+  </span>
+  <a href="{{ url_for('views.birthdays_page') }}">🎉 Birthdays</a>
+</div>
+{% endif %}
 
 <main class="wrap">
   {% for cat, msg in flashes %}

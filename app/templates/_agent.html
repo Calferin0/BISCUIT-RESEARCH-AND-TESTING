@@ -7,6 +7,7 @@
 <span class="agent-tag"><span class="avatar-frame{% if f.frame %} frame-{{ f.frame }}{% endif %}" aria-hidden="true">{{ avatar }}</span>
 <span class="agent-name-text{% if f.color %} name-{{ f.color }}{% endif %}{% if f.effect %} fx-{{ f.effect }}{% endif %}">{{ prefix }}{{ name }}</span>
 {%- if f.badge %}<span class="flair-badge" aria-hidden="true">{{ f.badge }}</span>{% endif %}
+{%- if member_id in birthday_ids %}<span class="flair-badge birthday-cake" title="Birthday today!">🎂</span>{% endif %}
 {%- if f.title %}<span class="agent-title">, {{ f.title }}</span>{% endif %}</span>
 {%- if link %}</a>{% endif -%}
 {%- endmacro %}

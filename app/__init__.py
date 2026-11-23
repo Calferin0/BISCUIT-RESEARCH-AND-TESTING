@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import os
 import secrets
+from datetime import date
 from pathlib import Path
 
 from flask import Flask, g, render_template, request
 
-from . import db, features, points, rarity, scoring, shop, util
+from . import birthdays, db, features, points, rarity, scoring, shop, util
 from .presence import Presence
 
 
@@ -73,6 +74,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         my_points = None
         court_open = 0
         flair: dict = {}
+        birthday_today: list = []
+        if me is not None and features.enabled("birthdays"):
+            today = date.today()
+            birthday_today = [r for r in db.birthday_rows() if birthdays.is_today(r["birthday"], today)]
         if me is not None:  # header badge balance + everyone's flair: a few tiny queries per page
             row = next(iter(db.points_activity(me["id"])), None)
             my_points = (points.total(row) if row else 0) - db.points_spent(me["id"]) + db.ledger_total(me["id"])
@@ -84,6 +89,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             "my_points": my_points,
             "court_open": court_open,
             "flair": flair,
+            "birthday_today": birthday_today,
+            "birthday_ids": {r["id"] for r in birthday_today},
             "CATEGORIES": scoring.CATEGORIES,
             "PURIST_FIELD": scoring.PURIST_FIELD,
             "PURIST_LABEL": scoring.PURIST_LABEL,

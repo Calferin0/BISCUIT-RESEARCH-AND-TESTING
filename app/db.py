@@ -19,7 +19,7 @@ from . import similarity
 from .points import NOTE_MIN_CHARS
 from .scoring import AVATARS, CATEGORY_KEYS
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS members (
     avatar     TEXT    NOT NULL DEFAULT '🍪',
     token      TEXT    NOT NULL UNIQUE,
     active     INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    birthday   TEXT                                  -- v13: 'MM-DD', no year (app/birthdays.py)
 );
 
 CREATE TABLE IF NOT EXISTS biscuits (
@@ -302,6 +303,7 @@ ADDED_COLUMNS = {
     "purchases": (("source", "TEXT NOT NULL DEFAULT 'shop'"),),                  # v8: shop | loot
     "drops": (("biscuit_id", "INTEGER"),),                                       # v8: explicit specimen link
     "dunks": (("active", "INTEGER NOT NULL DEFAULT 1"),),                        # v9: admin removal
+    "members": (("birthday", "TEXT"),),                                           # v13: birthday tracker
 }
 
 
@@ -1573,6 +1575,12 @@ def whosaid_history(member_id: int) -> list[sqlite3.Row]:
            WHERE member_id = ? AND guess_id IS NOT NULL ORDER BY id DESC""", (member_id,)).fetchall()
 
 
+def whosaid_seen(member_id: int) -> dict[int, int]:
+    """{rating id: latest round id} for every quote this player has been shown."""
+    return {r[0]: r[1] for r in get_db().execute(
+        "SELECT rating_id, MAX(id) FROM whosaid_rounds WHERE member_id = ? GROUP BY rating_id", (member_id,))}
+
+
 def whosaid_rewarded_today(member_id: int) -> int:
     return get_db().execute(
         """SELECT COALESCE(SUM(reward), 0) FROM whosaid_rounds
@@ -1590,3 +1598,27 @@ def catwalk_agents() -> list[sqlite3.Row]:
     """Every active agent, for the Agents page."""
     return get_db().execute(
         "SELECT id, name, avatar, created_at FROM members WHERE active = 1 ORDER BY name COLLATE NOCASE").fetchall()
+
+
+# --- birthdays (v13) ------------------------------------------------------------------------
+
+def set_birthday(member_id: int, mmdd: str | None) -> None:
+    conn = get_db()
+    with conn:
+        conn.execute("UPDATE members SET birthday = ? WHERE id = ?", (mmdd, member_id))
+
+
+def birthday_rows() -> list[sqlite3.Row]:
+    """Active agents, with their birthday ('MM-DD' or NULL)."""
+    return get_db().execute(
+        "SELECT id, name, avatar, birthday FROM members WHERE active = 1 ORDER BY name COLLATE NOCASE").fetchall()
+
+
+def gift_once(member_id: int, delta: int, reason: str, ref: str) -> bool:
+    """Ledger credit that happens at most once per (member, ref). True if it was paid now."""
+    conn = get_db()
+    with conn:
+        if conn.execute("SELECT 1 FROM ledger WHERE member_id = ? AND ref = ?", (member_id, ref)).fetchone():
+            return False
+        ledger_add(member_id, delta, reason, ref, conn)
+    return True

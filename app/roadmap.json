@@ -2,6 +2,19 @@
   "_comment": "Drives the WORKING ON IT page. Re-read on every request, so edits show without a restart. Public repo: no teammate names here; cite suggestions by #id. status: now | next | later | done",
   "updates": [
     {
+      "date": "2026-11-23",
+      "title": "Birthdays, coffee and an easier-to-find menu",
+      "items": [
+        "✨ A strip of BRT specials under the top tabs: Commandments, Who Said That?, Birthdays, Mystery Tins, Dunk-O-Meter, Shop, Locker and Tony are all one tap away",
+        "🎂 The R&D Birthday Tracker: who's next, a countdown, a banner and a cake by the birthday agent's name on the day, and a points gift. Set yours on the Birthdays page (day and month only)",
+        "🗣️ Who Said That? shows you every quote before it repeats one, and repeats only the ones you saw longest ago (#14, #15)",
+        "☕ The coffee corner: barista titles, espresso and latte colours, a coffee-ring frame, steam and caffeine-jitter name effects, bean badges and coffee-shop banners, plus four coffee items in the Mystery Tins (#13)",
+        "🎰 Opening a Mystery Tin now spins a reel of prizes that slows down and lands on yours. Same honest odds: the prize is decided before the reel spins",
+        "🎩 Keep your eyes peeled. Somebody spins by now and then",
+        "🙈 Biscuit Radar and Biscuit VS are switched off for now. Nothing's been deleted"
+      ]
+    },
+    {
       "date": "2026-11-19",
       "title": "Fun upgrade, plus bug fixes from the suggestion box",
       "items": [

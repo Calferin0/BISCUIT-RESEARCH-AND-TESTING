@@ -9,7 +9,7 @@ from datetime import date
 from flask import (Blueprint, Response, abort, current_app, flash, redirect, render_template,
                    request, url_for)
 
-from . import db, features, images, radar, rarity, scoring, util
+from . import birthdays, db, features, images, radar, rarity, scoring, util
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -35,6 +35,7 @@ def index():
         members.append({**dict(m), "url": url, "qr": util.qr_data_uri(url) if m["active"] else None})
     return render_template(
         "admin.html", base=base, members=members, avatars=scoring.AVATARS,
+        bday_value=birthdays.form_value, bday_label=birthdays.label,
         biscuits=db.list_biscuits(None, include_inactive=True),
         live=current_app.extensions["brt_presence"].live(),
         new_suggestions=len(db.list_suggestions(None, ("new",))),
@@ -176,6 +177,13 @@ def edit_member(member_id: int):
         flash(f"There's already an agent called {name}.", "error")
     else:
         db.update_member(member_id, name, avatar if avatar in scoring.AVATARS else m["avatar"])
+        if "birthday" in request.form:
+            raw = request.form.get("birthday", "").strip()
+            mmdd = birthdays.parse(raw) if raw else None
+            if raw and mmdd is None:
+                flash(f"Birthday '{raw}' isn't a date (use day/month, like 19/11). Name and avatar saved.", "error")
+                return redirect(url_for("admin.index"))
+            db.set_birthday(member_id, mmdd)
         flash(f"Agent {name} updated.", "info")
     return redirect(url_for("admin.index"))
 
