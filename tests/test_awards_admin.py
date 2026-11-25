@@ -32,3 +32,10 @@ def test_admin_cant_award_a_shop_item_and_lan_is_refused(app, client, agent_toke
     lan = {"REMOTE_ADDR": "192.168.1.50"}
     assert client.post("/admin/awards", data={"member_id": 1, "item_key": "award-badge-million"},
                        environ_base=lan).status_code == 403
+
+
+def test_stack_forms_stay_vertical():
+    """#16: a global `.stack` flex rule turned every vertical form into a squashed row."""
+    from pathlib import Path
+    css = (Path(__file__).parent.parent / "app" / "static" / "css" / "brt.css").read_text(encoding="utf-8")
+    assert ".stack {" not in css and ".stack input" not in css

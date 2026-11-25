@@ -1019,8 +1019,8 @@ body.stealthed .estop-wrap:hover, body.stealthed .estop-wrap:focus-within { opac
 .tablet-list .law-votes { font: 600 .7rem/1 var(--mono); opacity: .7; white-space: nowrap; }
 .tablet-list .vacant { opacity: .45; font-style: italic; }
 .tablet-empty { text-align: center; font: italic 1rem Georgia, serif; }
-.stack { display: flex; gap: 8px; flex-wrap: wrap; }
-.stack input { flex: 1 1 240px; }
+.inline-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.inline-row input { flex: 1 1 240px; }
 .commandment-list { list-style: none; padding: 0; display: grid; gap: 10px; }
 .commandment { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .commandment.is-law { border-color: #cdbb92; }
