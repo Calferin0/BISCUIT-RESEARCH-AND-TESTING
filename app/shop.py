@@ -28,6 +28,7 @@ class Item:
     value: str   # title text, or CSS class suffix for colours/frames
     blurb: str
     loot_tier: str | None = None  # set = lootbox-only (can't be bought); value is its rarity tier
+    award: bool = False           # control-room award only: never sold, never in a tin
 
 
 CATALOGUE: tuple[Item, ...] = (
@@ -131,10 +132,17 @@ CATALOGUE: tuple[Item, ...] = (
     Item("loot-color-mocha", "color", "Mocha", 0, "mocha", "Coffee and chocolate: the best of both.", "rare"),
     Item("loot-title-cafetiere", "title", "Keeper of the Cafetière", 0, "Keeper of the Cafetière", "Plunges with ceremony.", "epic"),
     Item("loot-badge-golden-bean", "badge", "Golden Bean Badge", 0, "☕✨", "The rarest roast in the building.", "legendary"),
+    # ---- control-room awards (cost 0, award=True): handed out from /admin, never sold or looted ----
+    Item("award-title-million", "title", "Asked for a Million Points", 0, "Asked for 1,000,000 Points",
+         "Filed a formal request for one million Biscuit Points. The control room said no, but gave you this.",
+         award=True),
+    Item("award-badge-million", "badge", "Nice Try Badge", 0, "🤑",
+         "Commemorates the boldest request in suggestion box history.", award=True),
 )
 
 BY_KEY: dict[str, Item] = {i.key: i for i in CATALOGUE}
-FOR_SALE = tuple(i for i in CATALOGUE if i.loot_tier is None)
+FOR_SALE = tuple(i for i in CATALOGUE if i.loot_tier is None and not i.award)
+AWARDS = tuple(i for i in CATALOGUE if i.award)
 
 
 def flair_for(equipped_keys) -> dict:

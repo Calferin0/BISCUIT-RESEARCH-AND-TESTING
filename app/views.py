@@ -645,7 +645,7 @@ def shop_page():
 @features.required("shop")
 def shop_buy(item_key: str):
     item = shop.BY_KEY.get(item_key)
-    if item is None or item.loot_tier is not None:  # loot-only items can't be bought
+    if item is None or item not in shop.FOR_SALE:  # loot-only and award items can't be bought
         abort(404)
     me_id = g.member["id"]
     error = db.buy(me_id, item.key, item.cost, balance(me_id))
@@ -703,7 +703,7 @@ def locker():
     by_slot = {slot: [i for i in items if i["item"].slot == slot] for slot in shop.SLOTS}
     return render_template("locker.html", by_slot=by_slot, slots=shop.SLOTS, avatars=scoring.AVATARS,
                            total=len(items), loot_count=sum(1 for i in items if i["source"] == "loot"),
-                           catalogue_size=len(shop.CATALOGUE))
+                           catalogue_size=len(shop.CATALOGUE) - len(shop.AWARDS))
 
 
 @bp.get("/agent/<int:member_id>")

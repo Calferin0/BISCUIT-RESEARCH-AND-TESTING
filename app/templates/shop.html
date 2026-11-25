@@ -17,7 +17,7 @@
 {% for slot, label in slots.items() %}
 <h2 class="section-title" id="{{ slot }}">{{ label }}</h2>
 <ul class="shop-grid">
-  {% for item in catalogue if item.slot == slot and (not item.loot_tier or item.key in owned) %}
+  {% for item in catalogue if item.slot == slot and ((not item.loot_tier and not item.award) or item.key in owned) %}
   {% set is_owned = item.key in owned %}{% set is_on = item.key in equipped_keys %}
   <li class="shop-item{{ ' owned' if is_owned }}{{ ' equipped' if is_on }}">
     <div class="shop-sample">

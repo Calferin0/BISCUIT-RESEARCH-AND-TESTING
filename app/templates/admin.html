@@ -51,6 +51,22 @@
   {% endif %}
 </section>
 
+<section class="panel" id="awards">
+  <h2>🏅 Special awards</h2>
+  <p class="muted small">Control-room-only cosmetics: never in the shop or a tin. Free, and the agent wears it straight away (they can take it off in their locker).</p>
+  <form method="post" action="{{ url_for('admin.grant_award') }}" class="inline-form">
+    <label class="field">Agent
+      <select name="member_id" required><option value="">Who?</option>
+        {% for m in members if m.active %}<option value="{{ m.id }}">{{ m.avatar }} {{ m.name }}</option>{% endfor %}
+      </select></label>
+    <label class="field grow">Award
+      <select name="item_key" required>
+        {% for a in awards %}<option value="{{ a.key }}">{{ a.name }} ({{ a.slot }}: {{ a.value }})</option>{% endfor %}
+      </select></label>
+    <button class="btn btn-small" type="submit">🏅 Award it</button>
+  </form>
+</section>
+
 <section class="panel live-panel" id="live" data-live-panel data-live-url="{{ url_for('admin.api_live') }}">
   <h2><span class="live-dot" aria-hidden="true"></span> Live now <span class="muted" data-live-count>({{ live | length }})</span></h2>
   <p class="muted small" data-live-summary>

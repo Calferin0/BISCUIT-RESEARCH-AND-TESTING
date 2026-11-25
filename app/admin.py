@@ -9,7 +9,7 @@ from datetime import date
 from flask import (Blueprint, Response, abort, current_app, flash, redirect, render_template,
                    request, url_for)
 
-from . import birthdays, db, features, images, radar, rarity, scoring, util
+from . import birthdays, db, features, images, radar, rarity, scoring, shop, util
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -44,7 +44,7 @@ def index():
         site=radar.load_site(current_app.config["DATA_DIR"]),
         shops=db.list_shops(include_hidden=True),
         features=features.FEATURES, feature_state=features.enabled_map(),
-        grants=db.admin_grants(), grant_limit=GRANT_LIMIT,
+        grants=db.admin_grants(), grant_limit=GRANT_LIMIT, awards=shop.AWARDS,
         all_prices=db.all_prices(), fmt_price=radar.fmt_price, dunks=db.all_dunks(),
         open_duels=[d for d in db.list_duels(None, 200) if d["status"] in ("pending", "active")],
         ious=[d for d in db.list_duels(None, 200) if d["status"] == "done" and d["biscuit_iou"]
@@ -121,6 +121,20 @@ def grant_points():
         db.ledger_add(m["id"], amount, f"🎖️ {reason}", "admin")
         flash(f"{'+' if amount > 0 else ''}{amount} points to {m['name']}: {reason}", "celebrate")
     return redirect(url_for("admin.index") + "#points")
+
+
+@bp.post("/awards")
+def grant_award():
+    """Hand out a control-room-only cosmetic (shop.AWARDS) and equip it. Free, so no ledger entry."""
+    m = db.get_member(request.form.get("member_id", type=int) or 0)
+    item = shop.BY_KEY.get(request.form.get("item_key", ""))
+    if m is None or item is None or not item.award:
+        flash("Pick an agent and an award.", "error")
+    elif db.grant_award(m["id"], item.key, item.slot):
+        flash(f"🏅 {m['name']} has been awarded {item.name}, and is wearing it.", "celebrate")
+    else:
+        flash(f"{m['name']} already has {item.name}.", "info")
+    return redirect(url_for("admin.index") + "#awards")
 
 
 @bp.post("/dunks/<int:dunk_id>/toggle")

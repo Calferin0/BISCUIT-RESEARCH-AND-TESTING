@@ -1188,6 +1188,19 @@ def buy(member_id: int, item_key: str, cost: int, balance: int) -> str | None:
     return None
 
 
+def grant_award(member_id: int, item_key: str, slot: str) -> bool:
+    """Give a control-room award and put it on. False if they already had it (nothing changes)."""
+    conn = get_db()
+    with conn:
+        cur = conn.execute("INSERT OR IGNORE INTO purchases (member_id, item_key, cost, source) VALUES (?, ?, 0, 'award')",
+                           (member_id, item_key))
+        if cur.rowcount == 0:
+            return False
+        conn.execute("DELETE FROM equipped WHERE member_id = ? AND slot = ?", (member_id, slot))
+        conn.execute("INSERT INTO equipped (member_id, slot, item_key) VALUES (?, ?, ?)", (member_id, slot, item_key))
+    return True
+
+
 def equip(member_id: int, slot: str, item_key: str | None) -> None:
     conn = get_db()
     with conn:

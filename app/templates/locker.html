@@ -55,6 +55,7 @@
     <strong>{{ item.name }}</strong>
     <p class="small">
       {%- if i.source == 'loot' %}<span class="rarity-badge inline rarity-{{ item.loot_tier }}">🎁 {{ item.loot_tier }} loot</span>
+      {%- elif i.source == 'award' %}<span class="muted">🏅 awarded by the control room</span>
       {%- else %}<span class="muted">🛍️ bought for {{ item.cost }} pts</span>{% endif %}
       <span class="muted"> · {{ i.when[:10] }}</span></p>
     <form method="post" action="{{ url_for('views.locker_equip', slot=slot) }}" class="shop-actions">

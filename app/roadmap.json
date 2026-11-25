@@ -2,6 +2,14 @@
   "_comment": "Drives the WORKING ON IT page. Re-read on every request, so edits show without a restart. Public repo: no teammate names here; cite suggestions by #id. status: now | next | later | done",
   "updates": [
     {
+      "date": "2026-11-25",
+      "title": "A formal request was received",
+      "items": [
+        "🤑 A request for one million Biscuit Points was received and given serious consideration (#18). Denied. The requester has been awarded a commemorative title instead, to wear with pride",
+        "🏅 The control room can now hand out special awards: cosmetics you can't buy or win from a tin"
+      ]
+    },
+    {
       "date": "2026-11-23",
       "title": "Birthdays, coffee and an easier-to-find menu",
       "items": [

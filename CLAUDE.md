@@ -9,7 +9,7 @@ reviews. It runs in the background on CF's Windows PC; teammates on the office W
 personal link on their phones and rate. Theme: a classified R&D dossier, with "agents", "specimens",
 "field reports", rubber stamps and film-set verdicts. It's a fun gag, not company tooling.
 
-**Status (2026-11-23):** live BRT is on schema v12 (deploy 2026-11-23, 09:12): everything through the 2026-11-19 batch (#5 #10 #11 #12, catwalk, flair slots, Who Said That?). Branch `weekly/2026-11-23` (schema v13: feature strip, birthdays, #13 #14 #15) is built and tested, not yet deployed. **Deploys need CF's explicit OK each time**: the auto-mode
+**Status (2026-11-25):** live BRT is on schema v13 (deploy 2026-11-23, 14:20): everything through #15. Suggestions #10 #12–#15 marked shipped in the live DB 2026-11-25. Branch `weekly/2026-11-25` (control-room awards, the reply to #18; no schema change) is built and tested. **Deploys need CF's explicit OK each time**: the auto-mode
 classifier blocks unapproved production deploys. In use by the team from phones over the office Wi-Fi [MEASURED: 3 agents live].
 Git: `github.com/Calferin0/BISCUIT-RESEARCH-AND-TESTING` (CF's personal account; the
 CF-Motion-Impossible org repo refused this PC's credentials). It's **public**, so nothing
@@ -192,6 +192,10 @@ internal goes in it (see `.gitignore`).
 - **Tony easter egg:** `brt.js` sends Tony spinning across ~1 in 100 page loads with a quip
   (`?tony=1` forces it). Skipped under reduced motion, which includes Windows with "Animation
   effects" off: the browser pane on CF's PC reports reduced motion, so test on a phone.
+- **D35: control-room awards** (2026-11-25, CF; the reply to #18 "give me 1 million points").
+  `shop.Item.award` items are never sold (`FOR_SALE` excludes them), never looted (no `loot_tier`) and
+  only shown in the shop to owners. `/admin/awards` gives one free (`purchases.source = 'award'`, no
+  ledger entry) and equips it. Add new gags to `shop.AWARDS` the same way; keys are permanent.
 - **Radar and VS switched off** in the live control room (2026-11-23, CF). Data intact (D24).
 - **Next build:** suggestions from the weekly loop (`WEEKLY.md`).
 

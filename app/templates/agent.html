@@ -35,7 +35,7 @@
       {{- sample(item, m.name, m.avatar) -}}
     </div>
     <strong>{{ item.name }}</strong>
-    <p class="small muted">{{ slots[item.slot] }}{% if i.source == 'loot' %} · 🎁 {{ item.loot_tier }} loot{% endif %}{% if i.on %} · ✓ wearing{% endif %}</p>
+    <p class="small muted">{{ slots[item.slot] }}{% if i.source == 'loot' %} · 🎁 {{ item.loot_tier }} loot{% elif i.source == 'award' %} · 🏅 control-room award{% endif %}{% if i.on %} · ✓ wearing{% endif %}</p>
   </li>
   {% endfor %}
 </ul>
